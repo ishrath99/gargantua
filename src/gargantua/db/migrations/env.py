@@ -47,7 +47,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         include_schemas=True,
-        version_table_schema="ai",
+        version_table_schema="gargantua_app",
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -65,11 +65,20 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Alembic creates ``alembic_version`` in ``version_table_schema``
+        # *before* it runs upgrade(), so the schema has to exist before
+        # the first migration even gets a chance to ``CREATE SCHEMA``.
+        # Pre-creating here is idempotent and lets a totally empty DB
+        # bootstrap with a single ``alembic upgrade head``.
+        from sqlalchemy import text as _text
+        with connection.begin():
+            connection.execute(_text("CREATE SCHEMA IF NOT EXISTS gargantua_app"))
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             include_schemas=True,
-            version_table_schema="ai",
+            version_table_schema="gargantua_app",
         )
         with context.begin_transaction():
             context.run_migrations()

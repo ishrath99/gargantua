@@ -144,7 +144,7 @@ def create_app() -> FastAPI:
         # ``request.app.state``.
         agno_db = PostgresDb(
             db_url=str(settings.database_url),
-            db_schema="agno",
+            db_schema="gargantua_agno",
             create_schema=False,
         )
         app.state.agno_db = agno_db

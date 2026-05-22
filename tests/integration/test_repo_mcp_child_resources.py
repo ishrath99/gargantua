@@ -1,4 +1,4 @@
-"""Repo layer for ``ai.mcp_server_child_resource``.
+"""Repo layer for ``gargantua_app.mcp_server_child_resource``.
 
 Focus on the tricky paths: parent gating (must exist, must not be
 archived, parent type must support children), encryption round-trip,

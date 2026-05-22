@@ -1,4 +1,4 @@
-"""Repo layer for ``ai.users`` — focuses on the *tricky* logic.
+"""Repo layer for ``gargantua_app.users`` — focuses on the *tricky* logic.
 
 The happy-path CRUD is also exercised by ``tests/integration/test_admin_users.py``
 through HTTP; this file isolates:

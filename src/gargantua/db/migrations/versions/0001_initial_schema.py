@@ -1,8 +1,7 @@
 """initial gargantua schema
 
-Creates the full ``ai.*`` schema.  Any pre-existing tables in the ``ai``
-schema (legacy from earlier deployments) are moved to ``ai_legacy.*`` first
-so this migration is safe to apply on a database that already has rows.
+Creates the full ``gargantua_app.*`` schema and every table in one shot.
+This is a greenfield migration — there's no legacy data to migrate.
 
 Revision ID: 0001_initial_schema
 Revises:
@@ -28,58 +27,10 @@ depends_on: Union[str, Sequence[str], None] = None
 # ---------------------------------------------------------------------------
 
 
-# Names of tables we manage in this revision.  Any *other* table found in
-# the ``ai`` schema on upgrade is assumed to be legacy and moved to
-# ``ai_legacy``.  We never silently drop data.
-_MANAGED_TABLES = {
-    "users",
-    "mcp_server_type",
-    "mcp_server",
-    "mcp_server_child_resource",
-    "agent",
-    "team",
-    "audit_log",
-    "alembic_version",
-}
-
-
-def _move_legacy_tables() -> None:
-    """Move every table currently in ``ai.*`` that we don't manage into ``ai_legacy.*``.
-
-    Idempotent: if ``ai_legacy.<name>`` already exists, we leave the source in
-    place rather than colliding — operators can resolve the conflict manually.
-    """
-    bind = op.get_bind()
-    op.execute("CREATE SCHEMA IF NOT EXISTS ai_legacy")
-
-    rows = bind.execute(
-        sa.text("SELECT tablename FROM pg_tables WHERE schemaname = 'ai'")
-    ).fetchall()
-
-    for (name,) in rows:
-        if name in _MANAGED_TABLES:
-            continue
-        # Skip if a same-named table already lives in ai_legacy.
-        exists = bind.execute(
-            sa.text(
-                "SELECT 1 FROM pg_tables "
-                "WHERE schemaname = 'ai_legacy' AND tablename = :n"
-            ),
-            {"n": name},
-        ).scalar()
-        if exists:
-            continue
-        # Quote the identifier to handle any odd legacy names.
-        op.execute(f'ALTER TABLE ai."{name}" SET SCHEMA ai_legacy')
-
-
 def upgrade() -> None:
     # Ensure prerequisites.
-    op.execute("CREATE SCHEMA IF NOT EXISTS ai")
+    op.execute("CREATE SCHEMA IF NOT EXISTS gargantua_app")
     op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
-
-    # Move any unmanaged legacy tables out of the way.
-    _move_legacy_tables()
 
     # ---------- users ----------
     op.create_table(
@@ -107,7 +58,7 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("username", name="uq_users_username"),
         sa.CheckConstraint("role IN ('admin', 'user')", name="ck_users_role_in_known_set"),
-        schema="ai",
+        schema="gargantua_app",
     )
 
     # ---------- mcp_server_type ----------
@@ -154,7 +105,7 @@ def upgrade() -> None:
             "mode IN ('stdio', 'sse', 'streamable_http')",
             name="ck_mcp_server_type_mode_in_known_set",
         ),
-        schema="ai",
+        schema="gargantua_app",
     )
 
     # ---------- mcp_server ----------
@@ -191,20 +142,20 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["type_id"],
-            ["ai.mcp_server_type.id"],
+            ["gargantua_app.mcp_server_type.id"],
             name="fk_mcp_server_type_id_mcp_server_type",
             ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["created_by"],
-            ["ai.users.id"],
+            ["gargantua_app.users.id"],
             name="fk_mcp_server_created_by_users",
             ondelete="SET NULL",
         ),
         sa.UniqueConstraint(
             "type_id", "name", "env_tag", name="uq_mcp_server_type_id_name_env_tag"
         ),
-        schema="ai",
+        schema="gargantua_app",
     )
 
     # ---------- mcp_server_child_resource ----------
@@ -239,7 +190,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["parent_mcp_server_id"],
-            ["ai.mcp_server.id"],
+            ["gargantua_app.mcp_server.id"],
             name="fk_mcp_server_child_resource_parent_mcp_server_id_mcp_server",
             ondelete="CASCADE",
         ),
@@ -252,7 +203,7 @@ def upgrade() -> None:
             "type IN ('swagger')",
             name="ck_mcp_server_child_resource_type_in_known_set",
         ),
-        schema="ai",
+        schema="gargantua_app",
     )
 
     # ---------- agent ----------
@@ -299,12 +250,12 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["created_by"],
-            ["ai.users.id"],
+            ["gargantua_app.users.id"],
             name="fk_agent_created_by_users",
             ondelete="SET NULL",
         ),
         sa.UniqueConstraint("name", name="uq_agent_name"),
-        schema="ai",
+        schema="gargantua_app",
     )
 
     # ---------- team ----------
@@ -343,7 +294,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["created_by"],
-            ["ai.users.id"],
+            ["gargantua_app.users.id"],
             name="fk_team_created_by_users",
             ondelete="SET NULL",
         ),
@@ -352,7 +303,7 @@ def upgrade() -> None:
             "mode IN ('route', 'coordinate', 'collaborate')",
             name="ck_team_mode_in_known_set",
         ),
-        schema="ai",
+        schema="gargantua_app",
     )
 
     # ---------- audit_log ----------
@@ -373,29 +324,29 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(
             ["actor_id"],
-            ["ai.users.id"],
+            ["gargantua_app.users.id"],
             name="fk_audit_log_actor_id_users",
             ondelete="SET NULL",
         ),
-        schema="ai",
+        schema="gargantua_app",
     )
     op.create_index(
         "ix_audit_log_target",
         "audit_log",
         ["target_type", "target_id"],
-        schema="ai",
+        schema="gargantua_app",
     )
     op.create_index(
         "ix_audit_log_actor_id",
         "audit_log",
         ["actor_id"],
-        schema="ai",
+        schema="gargantua_app",
     )
     op.create_index(
         "ix_audit_log_created_at",
         "audit_log",
         [sa.text("created_at DESC")],
-        schema="ai",
+        schema="gargantua_app",
     )
 
 
@@ -406,13 +357,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_audit_log_created_at", table_name="audit_log", schema="ai")
-    op.drop_index("ix_audit_log_actor_id", table_name="audit_log", schema="ai")
-    op.drop_index("ix_audit_log_target", table_name="audit_log", schema="ai")
-    op.drop_table("audit_log", schema="ai")
-    op.drop_table("team", schema="ai")
-    op.drop_table("agent", schema="ai")
-    op.drop_table("mcp_server_child_resource", schema="ai")
-    op.drop_table("mcp_server", schema="ai")
-    op.drop_table("mcp_server_type", schema="ai")
-    op.drop_table("users", schema="ai")
+    op.drop_index("ix_audit_log_created_at", table_name="audit_log", schema="gargantua_app")
+    op.drop_index("ix_audit_log_actor_id", table_name="audit_log", schema="gargantua_app")
+    op.drop_index("ix_audit_log_target", table_name="audit_log", schema="gargantua_app")
+    op.drop_table("audit_log", schema="gargantua_app")
+    op.drop_table("team", schema="gargantua_app")
+    op.drop_table("agent", schema="gargantua_app")
+    op.drop_table("mcp_server_child_resource", schema="gargantua_app")
+    op.drop_table("mcp_server", schema="gargantua_app")
+    op.drop_table("mcp_server_type", schema="gargantua_app")
+    op.drop_table("users", schema="gargantua_app")

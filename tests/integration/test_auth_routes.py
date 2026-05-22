@@ -4,7 +4,7 @@ Every test runs against the real Postgres provided by the integration
 conftest:
 
 * ``migrated_engine`` (session) — schemas reset + Alembic upgrade applied once.
-* ``truncate_db`` (per-test)    — every ``ai.*`` table truncated before the test.
+* ``truncate_db`` (per-test)    — every ``gargantua_app.*`` table truncated before the test.
 
 The FastAPI app under test is constructed inline so we can swap settings
 (JWT keys, DSN, etc.) via env vars without touching the production

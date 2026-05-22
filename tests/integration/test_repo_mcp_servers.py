@@ -1,4 +1,4 @@
-"""Repo layer for ``ai.mcp_server``.
+"""Repo layer for ``gargantua_app.mcp_server``.
 
 Focus: the parts that aren't covered by the HTTP integration tests —
 encryption round-trip, KekMismatch propagation, FK gating against

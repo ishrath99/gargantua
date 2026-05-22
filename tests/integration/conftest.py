@@ -1,12 +1,12 @@
 """Fixtures for tests/integration/*.
 
 Every test here needs a real Postgres.  We default to the locally-running
-``gargantua-pg`` container (``postgresql+psycopg://ai:pg123@localhost:5432``)
+``postgres`` container (``postgresql+psycopg://postgres:postgres@localhost:5432``)
 but anything that exposes a Postgres 13+ DSN over ``TEST_DATABASE_URL`` works.
 
 Per-session:
   * ensure the test database exists (created on the maintenance DB if missing)
-  * drop and recreate the ``ai`` + ``ai_legacy`` schemas
+  * drop and recreate the ``gargantua_app`` schema
   * run Alembic ``upgrade head``
 
 Per-test:
@@ -30,8 +30,8 @@ from sqlalchemy.orm import Session, sessionmaker
 # Connection plumbing
 # ---------------------------------------------------------------------------
 
-DEFAULT_TEST_DSN = "postgresql+psycopg://ai:pg123@localhost:5432/gargantua_test"
-MAINTENANCE_DSN_FALLBACK = "postgresql+psycopg://ai:pg123@localhost:5432/postgres"
+DEFAULT_TEST_DSN = "postgresql+psycopg://postgres:postgres@localhost:5432/gargantua_test"
+MAINTENANCE_DSN_FALLBACK = "postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
 
 
 def _test_dsn() -> str:
@@ -69,12 +69,11 @@ def _ensure_database_exists(test_dsn: str) -> None:
 
 
 def _reset_schemas(engine: Engine) -> None:
-    """Drop and recreate ``ai`` + ``ai_legacy`` schemas."""
+    """Drop and recreate the ``gargantua_app`` schema."""
     with engine.begin() as conn:
-        conn.execute(text("DROP SCHEMA IF EXISTS ai CASCADE"))
-        conn.execute(text("DROP SCHEMA IF EXISTS ai_legacy CASCADE"))
+        conn.execute(text("DROP SCHEMA IF EXISTS gargantua_app CASCADE"))
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto"))
-        conn.execute(text("CREATE SCHEMA ai"))
+        conn.execute(text("CREATE SCHEMA gargantua_app"))
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +111,7 @@ def engine(_db_ready: str) -> Iterator[Engine]:
 
 @pytest.fixture
 def clean_db(engine: Engine) -> Iterator[Engine]:
-    """Reset the ``ai``/``ai_legacy`` schemas before each test that needs raw DDL."""
+    """Reset the ``gargantua_app`` schema before each test that needs raw DDL."""
     _reset_schemas(engine)
     yield engine
 
@@ -156,7 +155,7 @@ def migrated_engine(engine: Engine, _db_ready: str) -> Engine:
     """Schema reset + Alembic upgrade, once for the whole test session.
 
     Use this fixture (instead of ``clean_db``) when the test needs the full
-    ``ai.*`` schema in place but does not itself exercise migrations.
+    ``gargantua_app.*`` schema in place but does not itself exercise migrations.
     """
     _reset_schemas(engine)
     run_alembic_upgrade(_db_ready)
@@ -165,7 +164,7 @@ def migrated_engine(engine: Engine, _db_ready: str) -> Engine:
 
 @pytest.fixture
 def truncate_db(migrated_engine: Engine) -> Engine:
-    """Truncate every ``ai.*`` table before the test runs.
+    """Truncate every ``gargantua_app.*`` table before the test runs.
 
     Cheaper than dropping/recreating the schema; preserves PKs and seqs by
     using ``RESTART IDENTITY CASCADE``.  Add new table names here whenever
@@ -175,8 +174,10 @@ def truncate_db(migrated_engine: Engine) -> Engine:
         conn.execute(
             text(
                 "TRUNCATE TABLE "
-                "ai.audit_log, ai.team, ai.agent, ai.mcp_server_child_resource, "
-                "ai.mcp_server, ai.mcp_server_type, ai.users "
+                "gargantua_app.audit_log, gargantua_app.team, gargantua_app.agent, "
+                "gargantua_app.mcp_server_child_resource, "
+                "gargantua_app.mcp_server, gargantua_app.mcp_server_type, "
+                "gargantua_app.users "
                 "RESTART IDENTITY CASCADE"
             )
         )

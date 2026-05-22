@@ -16,8 +16,8 @@ a mid-way failure rolls every row back — no half-rotated state.
 
 Currently two tables hold secrets:
 
-    * ``ai.mcp_server.env_vars`` (+ ``env_var_iv`` + ``env_var_kek_id``)
-    * ``ai.mcp_server_child_resource.headers`` (+ ``headers_iv`` + ``headers_kek_id``)
+    * ``gargantua_app.mcp_server.env_vars`` (+ ``env_var_iv`` + ``env_var_kek_id``)
+    * ``gargantua_app.mcp_server_child_resource.headers`` (+ ``headers_iv`` + ``headers_kek_id``)
 
 If a future migration adds more, extend :func:`_encrypted_columns_by_table`.
 """

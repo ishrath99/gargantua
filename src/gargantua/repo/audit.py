@@ -1,4 +1,4 @@
-"""Repository for ``ai.audit_log``.
+"""Repository for ``gargantua_app.audit_log``.
 
 Every admin-side mutation should write a row here in the *same*
 transaction as the mutation itself, so that the audit trail can never

@@ -1,4 +1,4 @@
-"""Repository for ``ai.mcp_server_type`` — the curated catalog of MCP templates.
+"""Repository for ``gargantua_app.mcp_server_type`` — the curated catalog of MCP templates.
 
 ``mcp_server_type`` rows are **templates**: they declare what an MCP server
 of a given kind looks like (mode, default command + args, the

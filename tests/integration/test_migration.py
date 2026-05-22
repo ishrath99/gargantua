@@ -1,10 +1,7 @@
 """Alembic ``upgrade head`` applies cleanly to a fresh database.
 
-Two scenarios:
-
-  1. Empty database — every new table in ``ai.*`` lands.
-  2. Database with pre-existing tables in the ``ai`` schema (the live one) — they
-     are moved to ``ai_legacy.*`` before the new schema is created.
+Greenfield contract: an empty DB ends up with every table in
+``gargantua_app.*`` after ``upgrade head``, and the migration is idempotent.
 """
 
 from __future__ import annotations
@@ -50,43 +47,6 @@ def test_upgrade_creates_full_schema_on_empty_db(
     assert not missing, f"missing tables after upgrade: {missing}"
 
 
-def test_upgrade_moves_preexisting_ai_tables_to_ai_legacy(
-    clean_db: Engine, test_dsn: str
-) -> None:
-    # Seed an old-shaped table in ai/ before running the migration.
-    with clean_db.begin() as conn:
-        conn.execute(
-            text(
-                """
-                CREATE TABLE ai.legacy_table (
-                    id   INT PRIMARY KEY,
-                    note TEXT
-                )
-                """
-            )
-        )
-        conn.execute(text("INSERT INTO ai.legacy_table VALUES (1, 'hello')"))
-
-    _run_alembic_upgrade(test_dsn)
-
-    # legacy_table should have moved out of `ai` into `ai_legacy`.
-    ai_tables = _tables_in_schema(clean_db, DB_SCHEMA)
-    legacy_tables = _tables_in_schema(clean_db, "ai_legacy")
-
-    assert "legacy_table" not in ai_tables
-    assert "legacy_table" in legacy_tables
-
-    # Data preserved.
-    with clean_db.connect() as conn:
-        rows = conn.execute(
-            text("SELECT id, note FROM ai_legacy.legacy_table")
-        ).all()
-    assert rows == [(1, "hello")]
-
-    # New tables still landed.
-    assert EXPECTED_TABLES <= ai_tables
-
-
 def test_upgrade_is_idempotent(clean_db: Engine, test_dsn: str) -> None:
     _run_alembic_upgrade(test_dsn)
     # Second run with everything already present must be a no-op.
@@ -107,7 +67,7 @@ def test_users_role_check_constraint_rejects_unknown_role(
         with pytest.raises(Exception) as excinfo:
             conn.execute(
                 text(
-                    "INSERT INTO ai.users (username, password_hash, role) "
+                    "INSERT INTO gargantua_app.users (username, password_hash, role) "
                     "VALUES (:u, :p, :r)"
                 ),
                 {"u": "evil", "p": "x", "r": "superhacker"},
@@ -125,7 +85,7 @@ def test_users_role_check_constraint_rejects_unknown_role(
 def test_upgrade_adds_users_is_active_column(
     clean_db: Engine, test_dsn: str
 ) -> None:
-    """After ``upgrade head``, ``ai.users.is_active`` exists with the right shape."""
+    """After ``upgrade head``, ``gargantua_app.users.is_active`` exists with the right shape."""
     _run_alembic_upgrade(test_dsn)
 
     with clean_db.connect() as conn:
@@ -134,14 +94,14 @@ def test_upgrade_adds_users_is_active_column(
                 """
                 SELECT data_type, is_nullable, column_default
                 FROM information_schema.columns
-                WHERE table_schema = 'ai'
+                WHERE table_schema = 'gargantua_app'
                   AND table_name   = 'users'
                   AND column_name  = 'is_active'
                 """
             )
         ).first()
 
-    assert row is not None, "is_active column must exist on ai.users"
+    assert row is not None, "is_active column must exist on gargantua_app.users"
     data_type, is_nullable, column_default = row
     assert data_type == "boolean"
     assert is_nullable == "NO"
@@ -172,7 +132,7 @@ def test_existing_user_gets_is_active_true_after_upgrade(
     with clean_db.begin() as conn:
         conn.execute(
             text(
-                "INSERT INTO ai.users (username, password_hash, role) "
+                "INSERT INTO gargantua_app.users (username, password_hash, role) "
                 "VALUES ('legacy', 'x', 'user')"
             )
         )
@@ -182,7 +142,7 @@ def test_existing_user_gets_is_active_true_after_upgrade(
 
     with clean_db.connect() as conn:
         is_active = conn.execute(
-            text("SELECT is_active FROM ai.users WHERE username = 'legacy'")
+            text("SELECT is_active FROM gargantua_app.users WHERE username = 'legacy'")
         ).scalar_one()
     assert is_active is True
 
@@ -206,7 +166,7 @@ def test_downgrade_drops_is_active_column(clean_db: Engine, test_dsn: str) -> No
         present = conn.execute(
             text(
                 "SELECT 1 FROM information_schema.columns "
-                "WHERE table_schema = 'ai' "
+                "WHERE table_schema = 'gargantua_app' "
                 "AND table_name = 'users' "
                 "AND column_name = 'is_active'"
             )
@@ -216,5 +176,5 @@ def test_downgrade_drops_is_active_column(clean_db: Engine, test_dsn: str) -> No
     # Critical: restore the schema to ``head`` so the session-scoped
     # ``migrated_engine`` fixture (used by all the other integration
     # tests) doesn't observe a half-migrated database.  ``clean_db`` only
-    # nukes the ``ai`` schema between tests; it doesn't reapply Alembic.
+    # nukes the ``gargantua_app`` schema between tests; it doesn't reapply Alembic.
     command.upgrade(cfg, "head")

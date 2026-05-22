@@ -1,4 +1,4 @@
-"""Repo layer for ``ai.audit_log`` — record + paginated query."""
+"""Repo layer for ``gargantua_app.audit_log`` — record + paginated query."""
 
 from __future__ import annotations
 

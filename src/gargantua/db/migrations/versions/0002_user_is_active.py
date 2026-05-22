@@ -1,6 +1,6 @@
 """users.is_active flag
 
-Adds a non-null ``is_active`` boolean column to ``ai.users`` so an admin
+Adds a non-null ``is_active`` boolean column to ``gargantua_app.users`` so an admin
 can deactivate (lock out) an account without deleting the row.  Existing
 rows are backfilled to ``true`` so the upgrade is a no-op for in-use
 deployments.
@@ -39,7 +39,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("true"),
         ),
-        schema="ai",
+        schema="gargantua_app",
     )
 
     # Step 2: helpful partial index — most admin queries filter to active
@@ -49,11 +49,11 @@ def upgrade() -> None:
         "ix_users_active_role",
         "users",
         ["role"],
-        schema="ai",
+        schema="gargantua_app",
         postgresql_where=sa.text("is_active = true"),
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_users_active_role", table_name="users", schema="ai")
-    op.drop_column("users", "is_active", schema="ai")
+    op.drop_index("ix_users_active_role", table_name="users", schema="gargantua_app")
+    op.drop_column("users", "is_active", schema="gargantua_app")

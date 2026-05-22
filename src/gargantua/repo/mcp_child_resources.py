@@ -1,4 +1,4 @@
-"""Repository for ``ai.mcp_server_child_resource``.
+"""Repository for ``gargantua_app.mcp_server_child_resource``.
 
 Child resources hang off an MCP server.  Today only ``type='swagger'``
 is supported; the design allows new ``type`` values to land without a

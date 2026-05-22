@@ -1,7 +1,7 @@
 """SQLAlchemy 2.0 mapped models — class-shape only (no DB).
 
 We verify that:
-  * every table-bound class lives under schema ``ai``
+  * every table-bound class lives under schema ``gargantua_app``
   * the public columns exist with the expected nullability + types in spirit
   * unique constraints and foreign-key targets match the design
 
@@ -32,7 +32,7 @@ def test_all_tables_live_under_ai_schema() -> None:
     from gargantua.db.base import Base
 
     for table in Base.metadata.tables.values():
-        assert table.schema == "ai", f"{table.name} is not in schema 'ai'"
+        assert table.schema == "gargantua_app", f"{table.name} is not in schema 'gargantua_app'"
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ def test_user_model_has_required_columns() -> None:
         "updated_at",
     } <= cols
     assert User.__table__.name == "users"
-    assert User.__table__.schema == "ai"
+    assert User.__table__.schema == "gargantua_app"
 
 
 def test_user_username_is_unique() -> None:
@@ -142,7 +142,7 @@ def test_mcp_server_columns_and_fk() -> None:
         "updated_at",
     } <= cols
 
-    # type_id references ai.mcp_server_type.id
+    # type_id references gargantua_app.mcp_server_type.id
     fks = [(fk.parent.key, fk.column.table.name) for fk in MCPServer.__table__.foreign_keys]
     assert ("type_id", "mcp_server_type") in fks
 

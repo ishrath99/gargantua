@@ -66,7 +66,7 @@ def build_agent_os_app(
     if agno_db is None:
         agno_db = PostgresDb(
             db_url=str(settings.database_url),
-            db_schema="agno",
+            db_schema="gargantua_agno",
             # Schema management is owned by our Alembic migration, not Agno.
             # Avoids racing two schema-creators on a single Postgres instance.
             create_schema=False,

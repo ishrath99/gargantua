@@ -1,4 +1,4 @@
-"""Repo layer for ``ai.agent``.
+"""Repo layer for ``gargantua_app.agent``.
 
 Focus on the parts the route layer can't easily cover from the outside:
 reference validation across ``mcp_server_ids`` / ``child_resource_ids``,

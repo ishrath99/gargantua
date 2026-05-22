@@ -1,4 +1,4 @@
-"""Repository for ``ai.users`` — sync + async accessors.
+"""Repository for ``gargantua_app.users`` — sync + async accessors.
 
 Why sync *and* async? The HTTP routes run inside FastAPI's async event
 loop and want an ``AsyncSession``; the admin CLI runs synchronously and

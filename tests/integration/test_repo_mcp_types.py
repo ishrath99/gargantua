@@ -1,4 +1,4 @@
-"""Repo layer for ``ai.mcp_server_type`` — focuses on the tricky paths.
+"""Repo layer for ``gargantua_app.mcp_server_type`` — focuses on the tricky paths.
 
 The happy-path CRUD is also exercised by the HTTP integration tests in
 ``test_admin_mcp_types``; this file isolates:

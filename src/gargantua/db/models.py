@@ -2,13 +2,13 @@
 
 Tables:
 
-    ai.users                       — auth principals.
-    ai.mcp_server_type             — catalog of MCP server templates.
-    ai.mcp_server                  — instantiated MCP servers (env-tagged).
-    ai.mcp_server_child_resource   — sub-resources of an MCP server (e.g. Swagger).
-    ai.agent                       — per-row agent definitions (DB-first).
-    ai.team                        — per-row team definitions referencing agents.
-    ai.audit_log                   — append-only diff log keyed on (target_type, target_id).
+    gargantua_app.users                       — auth principals.
+    gargantua_app.mcp_server_type             — catalog of MCP server templates.
+    gargantua_app.mcp_server                  — instantiated MCP servers (env-tagged).
+    gargantua_app.mcp_server_child_resource   — sub-resources of an MCP server (e.g. Swagger).
+    gargantua_app.agent                       — per-row agent definitions (DB-first).
+    gargantua_app.team                        — per-row team definitions referencing agents.
+    gargantua_app.audit_log                   — append-only diff log keyed on (target_type, target_id).
 
 The columns map 1:1 onto the Alembic initial migration in
 ``gargantua/db/migrations/versions/0001_initial_schema.py``.

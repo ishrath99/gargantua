@@ -15,7 +15,7 @@ from __future__ import annotations
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
 
-DB_SCHEMA = "ai"
+DB_SCHEMA = "gargantua_app"
 
 _NAMING_CONVENTION = {
     "ix": "ix_%(table_name)s_%(column_0_N_label)s",

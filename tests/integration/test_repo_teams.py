@@ -1,4 +1,4 @@
-"""Repo layer for ``ai.team``.
+"""Repo layer for ``gargantua_app.team``.
 
 Focus: mode validation, member-ref validation across the live
 ``agent`` table, duplicate name handling, and the partial-update /

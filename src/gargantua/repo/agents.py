@@ -1,4 +1,4 @@
-"""Repository for ``ai.agent`` — DB-defined Agno agents.
+"""Repository for ``gargantua_app.agent`` — DB-defined Agno agents.
 
 An agent row is the operator-authored spec for an Agno
 :class:`~agno.agent.Agent`: model, instructions, MCP server / child

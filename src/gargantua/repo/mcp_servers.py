@@ -1,4 +1,4 @@
-"""Repository for ``ai.mcp_server`` — instantiated MCP servers.
+"""Repository for ``gargantua_app.mcp_server`` — instantiated MCP servers.
 
 A server row glues together:
 

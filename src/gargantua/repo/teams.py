@@ -1,4 +1,4 @@
-"""Repository for ``ai.team`` — DB-defined Agno teams.
+"""Repository for ``gargantua_app.team`` — DB-defined Agno teams.
 
 A team row is a thin orchestration spec: a name, an Agno ``mode``
 (``route`` / ``coordinate`` / ``collaborate``), a list of member
@@ -47,7 +47,7 @@ from gargantua.db.models import Agent, Team
 
 
 #: Mirrors the DB-level CHECK constraint ``mode_in_known_set`` on
-#: ``ai.team``.  Keep in sync with the model.
+#: ``gargantua_app.team``.  Keep in sync with the model.
 VALID_MODES: Final[frozenset[str]] = frozenset(
     {"route", "coordinate", "collaborate"}
 )

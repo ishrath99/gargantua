@@ -39,7 +39,7 @@ class PaginationMeta(BaseModel):
 
 
 class UserOut(BaseModel):
-    """Public projection of an ``ai.users`` row.  Never contains the password hash."""
+    """Public projection of an ``gargantua_app.users`` row.  Never contains the password hash."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -71,7 +71,7 @@ class UserListOut(PaginationMeta):
 
 
 class AuditLogOut(BaseModel):
-    """Public projection of an ``ai.audit_log`` row."""
+    """Public projection of an ``gargantua_app.audit_log`` row."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -122,7 +122,7 @@ class ConfigSchemaField(BaseModel):
 
 
 class MCPServerTypeOut(BaseModel):
-    """Public projection of an ``ai.mcp_server_type`` row."""
+    """Public projection of an ``gargantua_app.mcp_server_type`` row."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -300,7 +300,7 @@ class MCPServerChildResourceListOut(PaginationMeta):
 
 
 class AgentOut(BaseModel):
-    """Public projection of an ``ai.agent`` row.
+    """Public projection of an ``gargantua_app.agent`` row.
 
     Reference fields (``mcp_server_ids`` and ``child_resource_ids``)
     are returned as-is — they're already opaque UUIDs.  The route layer
@@ -360,12 +360,12 @@ class AgentListOut(PaginationMeta):
 
 
 #: Mirrors :data:`gargantua.repo.teams.VALID_MODES` and the DB CHECK on
-#: ``ai.team``.
+#: ``gargantua_app.team``.
 _TEAM_MODE_PATTERN = r"^(route|coordinate|collaborate)$"
 
 
 class TeamOut(BaseModel):
-    """Public projection of an ``ai.team`` row."""
+    """Public projection of an ``gargantua_app.team`` row."""
 
     model_config = ConfigDict(from_attributes=True)
 
