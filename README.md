@@ -1,19 +1,59 @@
 # Gargantua
 
-An open ecosystem where agents, tools, MCP servers, workflows, and
-teams coexist.  Built on [Agno](https://docs.agno.com/) `AgentOS` with
-a DB-first model: admins define MCP servers, agents, and teams; users
-chat with them through a Next.js UI (see `ui/`) or by hitting
-`POST /v1/agents/{id}/runs` directly.
+> **The operator-grade control plane for MCP-powered agents.**
+> Define agents, teams, and MCP servers as **data**, not code — with
+> encrypted secrets, RBAC, audit, and a real ops runbook.
 
-Backend covers: schema + Alembic, KEK + secrets, JWT auth, RBAC, audit
-log, catalog of MCP types, MCP server + child-resource CRUD, agent +
-team CRUD, MCP cache with leases / version bumps / child-resource
-scoping, runtime routes (`/v1/agents/{id}/runs`, `/v1/teams/{id}/runs`),
-`/me` projections, and an agent-template loader.
+[![CI](https://github.com/ishrath99/gargantua/actions/workflows/ci.yml/badge.svg)](https://github.com/ishrath99/gargantua/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
-See `RUNBOOK.md` for day-2 ops procedures (KEK rotation, JWT rotation,
-diagnosing a stuck MCP cache entry, etc.).
+<!-- TODO: add docs/img/admin-console.png screenshot of the chat UI + admin console -->
+
+Most agent frameworks are libraries: you write Python, you redeploy
+for every change. **Gargantua is the opposite.** Agents, teams, and
+the MCP servers they call are rows in Postgres. Admins curate them
+through a web console; users chat with them through the same UI or
+hit `POST /v1/agents/{id}/runs` directly.
+
+It's what you'd build if you wanted to give a hundred internal users
+safe, governed access to LLM agents over **your** MCP servers, and
+you cared about secrets, audit, and rotation as much as about prompts.
+
+Built on [Agno](https://docs.agno.com/) `AgentOS`. See `RUNBOOK.md`
+for day-2 ops procedures.
+
+## What's in the box
+
+- **DB-first agent + team definitions** — full CRUD with archive, per-user
+  access scoping, and bundled Markdown instruction templates.
+- **MCP as a first-class citizen** — typed catalog of server kinds, per-server
+  child-resource scoping (swagger docs, etc.), warm-handle cache with leases.
+- **Secrets done right** — AES-256-GCM envelope encryption under a single
+  KEK, with a documented rotation path that doesn't require downtime.
+- **RS256 JWT auth, RBAC, audit log, bootstrap admin** — all the
+  multi-tenant plumbing you'd otherwise rebuild.
+- **Streaming runs** — SSE under `/v1/agents/{id}/runs` (and teams).
+- **A real UI** — Next.js admin + chat, baked into the same container as
+  static assets, served at `/` and `/admin/`.
+- **A real runbook** — KEK rotation, JWT rotation, stuck-cache recovery,
+  lost-KEK recovery, backup / restore. See `RUNBOOK.md`.
+
+## How it compares
+
+|                                  | Gargantua | LangGraph / CrewAI | Dify     | Open WebUI |
+| -------------------------------- | --------- | ------------------ | -------- | ---------- |
+| Define agents as                 | DB rows   | Python code        | DB rows  | Mostly UI  |
+| MCP-native                       | yes       | partial            | no       | no         |
+| Encrypted secrets w/ rotation    | yes       | no                 | partial  | no         |
+| Multi-user RBAC + audit log      | yes       | no                 | yes      | partial    |
+| Self-host in one command         | yes       | n/a (library)      | yes      | yes        |
+| Code-first extensibility         | yes (Agno)| yes                | partial  | no         |
+
+If you want a Python library to embed an agent into your app, use
+LangGraph or CrewAI. If you want a no-code studio for prompt flows,
+use Dify. **Reach for Gargantua when you want to operate agents like
+a service: a catalog, secrets, audit, and a runbook.**
 
 ## Stack
 
@@ -23,6 +63,7 @@ diagnosing a stuck MCP cache entry, etc.).
 - **MCP lifecycle**: lazy cache keyed by `(server_id, sorted_child_resource_ids)`,
   per-key lock, ref-count, idle reaper, evict-all-variants on row change
 - **DB**: SQLAlchemy 2.x with sync + async engines on the same psycopg-3 dialect
+- **UI**: Next.js 14 + TypeScript, fully static export
 
 ## Local quickstart
 

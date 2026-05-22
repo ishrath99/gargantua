@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/ishrath99/gargantua/security/advisories/new
+    about: |
+      Please report security issues privately via GitHub Security Advisories,
+      or email ishrathahamed0@gmail.com. Do NOT open a public issue.
+  - name: Question or discussion
+    url: https://github.com/ishrath99/gargantua/discussions
+    about: |
+      For usage questions, design discussions, or "is this the right tool"
+      conversations, please use Discussions rather than Issues.

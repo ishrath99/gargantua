@@ -2,11 +2,11 @@
  * Token storage shim.
  *
  * Tokens live in ``localStorage``.  This is the simplest possible
- * choice and matches the backend's current JSON token response;
- * the security trade-off (XSS could read tokens) is acknowledged in
- * the plan and is mitigated by:
+ * choice and matches the backend's current JSON token response.
+ * The security trade-off (XSS could read tokens) is documented in
+ * ``SECURITY.md`` and is mitigated by:
  *   * never rendering user-supplied HTML (no ``dangerouslySetInnerHTML``)
- *   * a strict CSP added in PR 18 via FastAPI middleware
+ *   * a strict CSP set by the FastAPI security headers middleware
  *
  * If we later need httpOnly cookies, the only file that changes is
  * this one — the rest of the codebase talks to ``getAccessToken`` /

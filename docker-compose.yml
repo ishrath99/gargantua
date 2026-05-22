@@ -19,7 +19,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: gargantua
-      POSTGRES_PASSWORD: gargantua
+      # Dev-only default. Override in .env (POSTGRES_PASSWORD=...) for any
+      # deployment you would not throw away. The same value is interpolated
+      # into the app service's DATABASE_URL* below.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gargantua}
       POSTGRES_DB: gargantua
       # Pin a locale so collation-sensitive indexes don't shift
       # between hosts.  C.UTF-8 is the safe default everywhere.
@@ -60,8 +63,8 @@ services:
       # postgres service, not localhost.  Anything in ``.env`` for
       # these will be shadowed (which is what we want — operators
       # rarely remember to flip them when moving from venv to compose).
-      DATABASE_URL: postgresql+psycopg://gargantua:gargantua@postgres:5432/gargantua
-      DATABASE_URL_ASYNC: postgresql+psycopg://gargantua:gargantua@postgres:5432/gargantua
+      DATABASE_URL: postgresql+psycopg://gargantua:${POSTGRES_PASSWORD:-gargantua}@postgres:5432/gargantua
+      DATABASE_URL_ASYNC: postgresql+psycopg://gargantua:${POSTGRES_PASSWORD:-gargantua}@postgres:5432/gargantua
       # Same-origin for the UI in compose — CORS only matters when
       # ``pnpm dev`` is talking to a separately-running backend.
       CORS_ORIGINS: ""
