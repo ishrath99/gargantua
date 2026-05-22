@@ -11,9 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from gargantua.db.base import DB_SCHEMA
-
 from tests.integration.conftest import run_alembic_upgrade as _run_alembic_upgrade
-
 
 EXPECTED_TABLES = {
     "users",
@@ -30,17 +28,13 @@ EXPECTED_TABLES = {
 def _tables_in_schema(engine: Engine, schema: str) -> set[str]:
     with engine.connect() as conn:
         rows = conn.execute(
-            text(
-                "SELECT tablename FROM pg_tables WHERE schemaname = :schema"
-            ),
+            text("SELECT tablename FROM pg_tables WHERE schemaname = :schema"),
             {"schema": schema},
         ).all()
     return {row[0] for row in rows}
 
 
-def test_upgrade_creates_full_schema_on_empty_db(
-    clean_db: Engine, test_dsn: str
-) -> None:
+def test_upgrade_creates_full_schema_on_empty_db(clean_db: Engine, test_dsn: str) -> None:
     _run_alembic_upgrade(test_dsn)
     tables = _tables_in_schema(clean_db, DB_SCHEMA)
     missing = EXPECTED_TABLES - tables
@@ -56,9 +50,7 @@ def test_upgrade_is_idempotent(clean_db: Engine, test_dsn: str) -> None:
     assert EXPECTED_TABLES <= tables
 
 
-def test_users_role_check_constraint_rejects_unknown_role(
-    clean_db: Engine, test_dsn: str
-) -> None:
+def test_users_role_check_constraint_rejects_unknown_role(clean_db: Engine, test_dsn: str) -> None:
     import psycopg
 
     _run_alembic_upgrade(test_dsn)
@@ -82,9 +74,7 @@ def test_users_role_check_constraint_rejects_unknown_role(
 # ---------------------------------------------------------------------------
 
 
-def test_upgrade_adds_users_is_active_column(
-    clean_db: Engine, test_dsn: str
-) -> None:
+def test_upgrade_adds_users_is_active_column(clean_db: Engine, test_dsn: str) -> None:
     """After ``upgrade head``, ``gargantua_app.users.is_active`` exists with the right shape."""
     _run_alembic_upgrade(test_dsn)
 
@@ -109,17 +99,16 @@ def test_upgrade_adds_users_is_active_column(
     assert column_default is not None and "true" in column_default.lower()
 
 
-def test_existing_user_gets_is_active_true_after_upgrade(
-    clean_db: Engine, test_dsn: str
-) -> None:
+def test_existing_user_gets_is_active_true_after_upgrade(clean_db: Engine, test_dsn: str) -> None:
     """A user inserted before 0002 ran must end up active, not inactive.
 
     Simulates an upgrade against a live deployment with existing rows.
     """
     # Stand up the schema at revision 0001 first.
+    from pathlib import Path
+
     from alembic import command
     from alembic.config import Config
-    from pathlib import Path
 
     repo_root = Path(__file__).resolve().parents[2]
     cfg = Config(str(repo_root / "alembic.ini"))
@@ -149,9 +138,10 @@ def test_existing_user_gets_is_active_true_after_upgrade(
 
 def test_downgrade_drops_is_active_column(clean_db: Engine, test_dsn: str) -> None:
     """Reversing 0002 removes the column (so the migration is bidirectional)."""
+    from pathlib import Path
+
     from alembic import command
     from alembic.config import Config
-    from pathlib import Path
 
     repo_root = Path(__file__).resolve().parents[2]
     cfg = Config(str(repo_root / "alembic.ini"))

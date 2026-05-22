@@ -29,7 +29,6 @@ from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import AuditLog, User
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -71,7 +70,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001 — wipe schema before each test
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[tuple[Path, Path]]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -254,9 +253,7 @@ def test_list_users_excludes_inactive_by_default(
 # ---------------------------------------------------------------------------
 
 
-def test_get_user_returns_row(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_user_returns_row(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     admin_id, token = seeded_admin
     r = client.get(f"/admin/users/{admin_id}", headers=_auth(token))
     assert r.status_code == 200
@@ -265,9 +262,7 @@ def test_get_user_returns_row(
     assert body["username"] == "root"
 
 
-def test_get_user_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_user_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     from uuid import uuid4
 
     _, token = seeded_admin
@@ -296,9 +291,7 @@ def test_create_user_201_and_audit_logged(
 
     # Verify the DB has the user *and* the audit row.
     with sync_session_maker() as s:
-        user = s.execute(
-            select(User).where(User.username == "newbie")
-        ).scalar_one()
+        user = s.execute(select(User).where(User.username == "newbie")).scalar_one()
         audit_rows = (
             s.execute(
                 select(AuditLog)
@@ -426,9 +419,7 @@ def test_update_role_no_op_does_not_write_audit(
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        count = s.execute(
-            select(AuditLog).where(AuditLog.action == "user.role_update")
-        ).all()
+        count = s.execute(select(AuditLog).where(AuditLog.action == "user.role_update")).all()
     assert count == []
 
 
@@ -455,16 +446,12 @@ def test_deactivate_user_blocks_login_and_logs(
         s.refresh(victim)
 
     admin_id, token = seeded_admin
-    r = client.post(
-        f"/admin/users/{victim.id}/deactivate", headers=_auth(token)
-    )
+    r = client.post(f"/admin/users/{victim.id}/deactivate", headers=_auth(token))
     assert r.status_code == 200, r.text
     assert r.json()["is_active"] is False
 
     # Login is now blocked.
-    r = client.post(
-        "/auth/login", json={"username": "victim", "password": "victimpw1"}
-    )
+    r = client.post("/auth/login", json={"username": "victim", "password": "victimpw1"})
     assert r.status_code == 401
 
     # Audit row was written.
@@ -502,25 +489,17 @@ def test_activate_user_restores_login(
         s.refresh(victim)
 
     _, token = seeded_admin
-    r = client.post(
-        f"/admin/users/{victim.id}/activate", headers=_auth(token)
-    )
+    r = client.post(f"/admin/users/{victim.id}/activate", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["is_active"] is True
 
-    r = client.post(
-        "/auth/login", json={"username": "victim", "password": "victimpw1"}
-    )
+    r = client.post("/auth/login", json={"username": "victim", "password": "victimpw1"})
     assert r.status_code == 200
 
 
-def test_deactivate_last_admin_blocked(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_deactivate_last_admin_blocked(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     admin_id, token = seeded_admin
-    r = client.post(
-        f"/admin/users/{admin_id}/deactivate", headers=_auth(token)
-    )
+    r = client.post(f"/admin/users/{admin_id}/deactivate", headers=_auth(token))
     assert r.status_code == 409
 
 
@@ -549,11 +528,7 @@ def test_deactivate_already_inactive_user_is_noop(
 
     with sync_session_maker() as s:
         audit_rows = (
-            s.execute(
-                select(AuditLog).where(AuditLog.action == "user.deactivate")
-            )
-            .scalars()
-            .all()
+            s.execute(select(AuditLog).where(AuditLog.action == "user.deactivate")).scalars().all()
         )
     assert audit_rows == []
 

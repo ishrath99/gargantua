@@ -56,9 +56,7 @@ def test_create_inserts_with_defaults(sync_session_maker) -> None:
         s.commit()
 
     with sync_session_maker() as s:
-        row = s.execute(
-            select(MCPServerType).where(MCPServerType.slug == "postgres")
-        ).scalar_one()
+        row = s.execute(select(MCPServerType).where(MCPServerType.slug == "postgres")).scalar_one()
     assert row.name == "PostgreSQL MCP"
     assert row.mode == "stdio"
     assert row.default_args == ["postgres-mcp"]

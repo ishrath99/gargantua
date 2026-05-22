@@ -10,12 +10,9 @@ the new KEK and not the old.
 from __future__ import annotations
 
 import base64
-import os
 from collections.abc import Iterator
-from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from typer.testing import CliRunner
@@ -26,7 +23,6 @@ from gargantua.secrets import (
     encrypt_json_with_kek,
     kek_fingerprint,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -45,7 +41,7 @@ def sync_session_maker(truncate_db: Engine) -> sessionmaker:
 @pytest.fixture
 def cli_env(
     monkeypatch: pytest.MonkeyPatch,
-    truncate_db: Engine,  # noqa: ARG001 — share schema reset with rotation tests
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     """Point the CLI's sync engine at the test DB; reset on exit."""
@@ -152,9 +148,7 @@ def test_rotate_all_secrets_re_encrypts_rows(sync_session_maker) -> None:
         server_id, child_id = srv.id, child.id
 
     with sync_session_maker() as s:
-        report = rotate_all_secrets(
-            s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False
-        )
+        report = rotate_all_secrets(s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False)
         s.commit()
 
     assert report.mcp_server_rotated == 1
@@ -199,9 +193,7 @@ def test_rotate_all_secrets_dry_run_changes_nothing(sync_session_maker) -> None:
         original_ct = srv.env_vars
 
     with sync_session_maker() as s:
-        report = rotate_all_secrets(
-            s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=True
-        )
+        report = rotate_all_secrets(s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=True)
         s.commit()
 
     assert report.dry_run is True
@@ -234,9 +226,7 @@ def test_rotate_all_secrets_is_idempotent(sync_session_maker) -> None:
         s.commit()
 
     with sync_session_maker() as s:
-        report = rotate_all_secrets(
-            s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False
-        )
+        report = rotate_all_secrets(s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False)
         s.commit()
 
     assert report.mcp_server_rotated == 0
@@ -260,9 +250,7 @@ def test_rotate_all_secrets_skips_empty_rows(sync_session_maker) -> None:
         s.commit()
 
     with sync_session_maker() as s:
-        report = rotate_all_secrets(
-            s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False
-        )
+        report = rotate_all_secrets(s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False)
         s.commit()
 
     assert report.mcp_server_rotated == 0
@@ -288,9 +276,7 @@ def test_rotate_all_secrets_raises_on_unknown_kek_id(sync_session_maker) -> None
 
     with sync_session_maker() as s:
         with pytest.raises(KekMismatch):
-            rotate_all_secrets(
-                s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False
-            )
+            rotate_all_secrets(s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False)
         s.rollback()
 
 
@@ -299,9 +285,7 @@ def test_rotate_all_secrets_rejects_identical_keys(sync_session_maker) -> None:
 
     with sync_session_maker() as s:
         with pytest.raises(ValueError):
-            rotate_all_secrets(
-                s, from_key=_KEY_OLD, to_key=_KEY_OLD, dry_run=False
-            )
+            rotate_all_secrets(s, from_key=_KEY_OLD, to_key=_KEY_OLD, dry_run=False)
 
 
 def test_rotate_all_secrets_rejects_inconsistent_row(sync_session_maker) -> None:
@@ -325,9 +309,7 @@ def test_rotate_all_secrets_rejects_inconsistent_row(sync_session_maker) -> None
 
     with sync_session_maker() as s:
         with pytest.raises(InvalidMasterKey):
-            rotate_all_secrets(
-                s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False
-            )
+            rotate_all_secrets(s, from_key=_KEY_OLD, to_key=_KEY_NEW, dry_run=False)
 
 
 # ---------------------------------------------------------------------------
@@ -341,7 +323,7 @@ def _b64(b: bytes) -> str:
 
 def test_cli_rotate_kek_rotates_rows(
     runner: CliRunner,
-    cli_env,  # noqa: ARG001
+    cli_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
@@ -381,7 +363,7 @@ def test_cli_rotate_kek_rotates_rows(
 
 def test_cli_rotate_kek_dry_run_does_not_write(
     runner: CliRunner,
-    cli_env,  # noqa: ARG001
+    cli_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
@@ -418,9 +400,7 @@ def test_cli_rotate_kek_dry_run_does_not_write(
     assert srv.env_var_kek_id == kek_fingerprint(_KEY_OLD)
 
 
-def test_cli_rotate_kek_rejects_bad_base64(
-    runner: CliRunner, cli_env  # noqa: ARG001
-) -> None:
+def test_cli_rotate_kek_rejects_bad_base64(runner: CliRunner, cli_env) -> None:
     from gargantua.admin import app
 
     result = runner.invoke(
@@ -436,9 +416,7 @@ def test_cli_rotate_kek_rejects_bad_base64(
     assert result.exit_code == 2
 
 
-def test_cli_rotate_kek_rejects_short_key(
-    runner: CliRunner, cli_env  # noqa: ARG001
-) -> None:
+def test_cli_rotate_kek_rejects_short_key(runner: CliRunner, cli_env) -> None:
     from gargantua.admin import app
 
     short = base64.b64encode(b"\x00" * 16).decode("ascii")  # 16 bytes ≠ 32
@@ -457,7 +435,7 @@ def test_cli_rotate_kek_rejects_short_key(
 
 def test_cli_rotate_kek_exits_3_on_unknown_kek_id(
     runner: CliRunner,
-    cli_env,  # noqa: ARG001
+    cli_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     """A row in an unknown KEK must surface as a clean non-zero exit."""

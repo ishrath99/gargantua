@@ -13,7 +13,6 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -57,7 +56,7 @@ async def test_engine_can_execute_select_one(async_engine: AsyncEngine) -> None:
 
 
 async def test_get_session_yields_usable_async_session(
-    async_engine: AsyncEngine,  # noqa: ARG001 — fixture triggers engine setup
+    async_engine: AsyncEngine,
 ) -> None:
     from gargantua.db.session import get_session
 

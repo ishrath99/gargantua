@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -39,7 +39,6 @@ from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import Agent, Team, User
 from gargantua.mcp_cache import BuildPlan, MCPCache
-
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -90,7 +89,7 @@ class _FakeRunnable:
     def set_result(self, result: Any) -> None:
         self._result = result
 
-    def arun(self, input: Any, **kwargs: Any) -> Any:  # noqa: A002
+    def arun(self, input: Any, **kwargs: Any) -> Any:
         # Real ``agno.agent.Agent.arun`` / ``agno.team.Team.arun`` are
         # sync methods returning either an AsyncIterator (stream=True)
         # or a coroutine resolving to a RunOutput (stream=False).
@@ -144,7 +143,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -204,7 +203,7 @@ async def cache(backend: _StubBackend) -> AsyncIterator[MCPCache]:
 
 
 @pytest.fixture
-def app(configured_env, cache: MCPCache) -> FastAPI:  # noqa: ARG001
+def app(configured_env, cache: MCPCache) -> FastAPI:
     from gargantua.api.auth import router as auth_router
     from gargantua.api.runs import router as runs_router
 
@@ -260,7 +259,7 @@ def _seed_agent(
             mcp_server_ids=mcp_server_ids or [],
         )
         if archived:
-            a.archived_at = datetime.now(tz=timezone.utc)
+            a.archived_at = datetime.now(tz=UTC)
         session.add(a)
         session.commit()
         session.refresh(a)
@@ -283,7 +282,7 @@ def _seed_team(
             member_agent_ids=member_agent_ids or [],
         )
         if archived:
-            t.archived_at = datetime.now(tz=timezone.utc)
+            t.archived_at = datetime.now(tz=UTC)
         session.add(t)
         session.commit()
         session.refresh(t)
@@ -317,7 +316,7 @@ def _patched_builders(
     # ``Settings.agno_debug``.  Captured on the fake so tests can
     # assert it round-trips correctly when needed.
     def default_agent(row, *, tools=None, db=None, debug=False):
-        a = (agent_factory() if agent_factory else _FakeRunnable())
+        a = agent_factory() if agent_factory else _FakeRunnable()
         a.row_id = row.id
         a.tools_passed = list(tools) if tools else []
         a.db_passed = db
@@ -326,7 +325,7 @@ def _patched_builders(
         return a
 
     def default_team(row, *, members, model=None, db=None, debug=False):
-        t = (team_factory() if team_factory else _FakeRunnable())
+        t = team_factory() if team_factory else _FakeRunnable()
         t.row_id = row.id
         t.members_passed = list(members)
         t.db_passed = db
@@ -334,12 +333,8 @@ def _patched_builders(
         captured_teams.append(t)
         return t
 
-    agent_patch = patch(
-        "gargantua.api.runs.build_agno_agent", side_effect=default_agent
-    )
-    team_patch = patch(
-        "gargantua.api.runs.build_agno_team", side_effect=default_team
-    )
+    agent_patch = patch("gargantua.api.runs.build_agno_agent", side_effect=default_agent)
+    team_patch = patch("gargantua.api.runs.build_agno_team", side_effect=default_team)
     return agent_patch, team_patch, captured_agents, captured_teams
 
 
@@ -353,9 +348,7 @@ def test_run_team_without_token_returns_401(client: TestClient) -> None:
     assert r.status_code == 401
 
 
-def test_run_missing_team_returns_404(
-    client: TestClient, seeded_user: tuple[UUID, str]
-) -> None:
+def test_run_missing_team_returns_404(client: TestClient, seeded_user: tuple[UUID, str]) -> None:
     _, token = seeded_user
     r = client.post(
         f"/v1/teams/{uuid4()}/runs",
@@ -411,9 +404,7 @@ def test_run_team_with_missing_member_returns_422(
     _, token = seeded_user
     real = _seed_agent(sync_session_maker, name="alive")
     ghost = uuid4()
-    t = _seed_team(
-        sync_session_maker, name="t", member_agent_ids=[real.id, ghost]
-    )
+    t = _seed_team(sync_session_maker, name="t", member_agent_ids=[real.id, ghost])
     r = client.post(
         f"/v1/teams/{t.id}/runs",
         json={"input": "hi"},
@@ -481,9 +472,7 @@ def test_non_streaming_team_returns_run_output_dict(
     user_id, token = seeded_user
     m1 = _seed_agent(sync_session_maker, name="m1")
     m2 = _seed_agent(sync_session_maker, name="m2")
-    t = _seed_team(
-        sync_session_maker, name="t", mode="coordinate", member_agent_ids=[m1.id, m2.id]
-    )
+    t = _seed_team(sync_session_maker, name="t", mode="coordinate", member_agent_ids=[m1.id, m2.id])
 
     def _team_with_result():
         team = _FakeRunnable()
@@ -533,12 +522,8 @@ def test_team_tools_are_sliced_per_member(
     handle_b = backend.add(sid_b, label="B")
     handle_c = backend.add(sid_c, label="C")
 
-    m_alpha = _seed_agent(
-        sync_session_maker, name="alpha", mcp_server_ids=[sid_a, sid_b]
-    )
-    m_beta = _seed_agent(
-        sync_session_maker, name="beta", mcp_server_ids=[sid_c]
-    )
+    m_alpha = _seed_agent(sync_session_maker, name="alpha", mcp_server_ids=[sid_a, sid_b])
+    m_beta = _seed_agent(sync_session_maker, name="beta", mcp_server_ids=[sid_c])
     t = _seed_team(
         sync_session_maker,
         name="t",
@@ -550,9 +535,7 @@ def test_team_tools_are_sliced_per_member(
         team.set_result(_FakeRunOutput(run_id="r", content="ok"))
         return team
 
-    agent_patch, team_patch, captured_agents, _ = _patched_builders(
-        team_factory=_team_with_result
-    )
+    agent_patch, team_patch, captured_agents, _ = _patched_builders(team_factory=_team_with_result)
     with agent_patch, team_patch:
         r = client.post(
             f"/v1/teams/{t.id}/runs",
@@ -587,24 +570,16 @@ def test_team_lease_dedup_across_members(
     sid_shared = uuid4()
     handle = backend.add(sid_shared, label="shared")
 
-    m1 = _seed_agent(
-        sync_session_maker, name="m1", mcp_server_ids=[sid_shared]
-    )
-    m2 = _seed_agent(
-        sync_session_maker, name="m2", mcp_server_ids=[sid_shared]
-    )
-    t = _seed_team(
-        sync_session_maker, name="t", member_agent_ids=[m1.id, m2.id]
-    )
+    m1 = _seed_agent(sync_session_maker, name="m1", mcp_server_ids=[sid_shared])
+    m2 = _seed_agent(sync_session_maker, name="m2", mcp_server_ids=[sid_shared])
+    t = _seed_team(sync_session_maker, name="t", member_agent_ids=[m1.id, m2.id])
 
     def _team_with_result():
         team = _FakeRunnable()
         team.set_result(_FakeRunOutput(run_id="r", content="ok"))
         return team
 
-    agent_patch, team_patch, captured_agents, _ = _patched_builders(
-        team_factory=_team_with_result
-    )
+    agent_patch, team_patch, captured_agents, _ = _patched_builders(team_factory=_team_with_result)
     with agent_patch, team_patch:
         r = client.post(
             f"/v1/teams/{t.id}/runs",
@@ -647,9 +622,7 @@ def test_team_lease_failure_returns_503_no_leak(
 
     m1 = _seed_agent(sync_session_maker, name="m1", mcp_server_ids=[sid_ok])
     m2 = _seed_agent(sync_session_maker, name="m2", mcp_server_ids=[sid_bad])
-    t = _seed_team(
-        sync_session_maker, name="t", member_agent_ids=[m1.id, m2.id]
-    )
+    t = _seed_team(sync_session_maker, name="t", member_agent_ids=[m1.id, m2.id])
 
     agent_patch, team_patch, _, _ = _patched_builders()
     with agent_patch, team_patch:
@@ -676,9 +649,7 @@ def test_team_arun_exception_propagates_as_500_with_release(
     sid = uuid4()
     backend.add(sid)
     m = _seed_agent(sync_session_maker, name="m", mcp_server_ids=[sid])
-    t = _seed_team(
-        sync_session_maker, name="t", member_agent_ids=[m.id]
-    )
+    t = _seed_team(sync_session_maker, name="t", member_agent_ids=[m.id])
 
     class _BoomTeam(_FakeRunnable):
         def arun(self, *args, **kwargs):  # type: ignore[override]
@@ -712,9 +683,7 @@ def test_streaming_team_returns_sse_chunks_and_done_marker(
 ) -> None:
     _, token = seeded_user
     m = _seed_agent(sync_session_maker, name="m")
-    t = _seed_team(
-        sync_session_maker, name="t", member_agent_ids=[m.id]
-    )
+    t = _seed_team(sync_session_maker, name="t", member_agent_ids=[m.id])
 
     events = [
         {"event": "team-start"},

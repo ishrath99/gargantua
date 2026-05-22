@@ -46,9 +46,7 @@ def test_record_inserts_row_with_all_fields(sync_session_maker) -> None:
         s.commit()
 
     with sync_session_maker() as s:
-        row = s.execute(
-            select(AuditLog).where(AuditLog.id == entry.id)
-        ).scalar_one()
+        row = s.execute(select(AuditLog).where(AuditLog.id == entry.id)).scalar_one()
     assert row.actor_id == actor
     assert row.action == "user.create"
     assert row.target_type == "user"
@@ -159,9 +157,7 @@ def test_list_audit_filters_and_paginates(sync_session_maker) -> None:
     assert total == 4
 
     with sync_session_maker() as s:
-        rows, total = list_audit(
-            s, page=1, page_size=50, target_type="user", target_id=user_target
-        )
+        rows, total = list_audit(s, page=1, page_size=50, target_type="user", target_id=user_target)
     assert total == 1
     assert rows[0].action == "user.role_update"
 

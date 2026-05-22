@@ -21,17 +21,16 @@ Callers translate these into HTTP responses or CLI exit codes.
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Any, Final
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from gargantua.auth.password import hash_password
 from gargantua.db.models import User
-
 
 VALID_ROLES: Final[frozenset[str]] = frozenset({"admin", "user"})
 
@@ -68,9 +67,7 @@ class LastAdminError(RepoError):
 
 def _validate_role(role: str) -> None:
     if role not in VALID_ROLES:
-        raise InvalidRole(
-            f"role must be one of {sorted(VALID_ROLES)}, got {role!r}"
-        )
+        raise InvalidRole(f"role must be one of {sorted(VALID_ROLES)}, got {role!r}")
 
 
 def _build_list_query(
@@ -78,7 +75,7 @@ def _build_list_query(
     role: str | None,
     search: str | None,
     include_inactive: bool,
-):
+) -> tuple[Any, Any]:
     stmt = select(User)
     count_stmt = select(func.count()).select_from(User)
 
@@ -101,7 +98,7 @@ def _build_list_query(
     return stmt, count_stmt
 
 
-def _other_active_admin_count_query(*, excluding: UUID):
+def _other_active_admin_count_query(*, excluding: UUID) -> Any:
     """Count *other* admins that are currently active.
 
     Used by both ``set_role`` and ``set_active`` to determine whether the
@@ -128,9 +125,7 @@ def get_by_id(session: Session, user_id: UUID) -> User | None:
 
 
 def get_by_username(session: Session, username: str) -> User | None:
-    return session.execute(
-        select(User).where(User.username == username)
-    ).scalar_one_or_none()
+    return session.execute(select(User).where(User.username == username)).scalar_one_or_none()
 
 
 def list_users(
@@ -199,13 +194,10 @@ def set_role(session: Session, *, user_id: UUID, new_role: str) -> User:
 
     if user.role == "admin" and new_role != "admin":
         # Demoting an admin — must be at least one *other* active admin.
-        others = session.execute(
-            _other_active_admin_count_query(excluding=user_id)
-        ).scalar_one()
+        others = session.execute(_other_active_admin_count_query(excluding=user_id)).scalar_one()
         if others == 0:
             raise LastAdminError(
-                "Refusing to demote the last active admin; promote another "
-                "user to admin first."
+                "Refusing to demote the last active admin; promote another user to admin first."
             )
 
     user.role = new_role
@@ -223,9 +215,7 @@ def set_active(session: Session, *, user_id: UUID, is_active: bool) -> User:
 
     if not is_active and user.role == "admin" and user.is_active:
         # Deactivating an active admin — must be at least one other.
-        others = session.execute(
-            _other_active_admin_count_query(excluding=user_id)
-        ).scalar_one()
+        others = session.execute(_other_active_admin_count_query(excluding=user_id)).scalar_one()
         if others == 0:
             raise LastAdminError(
                 "Refusing to deactivate the last active admin; activate or "
@@ -301,9 +291,7 @@ async def acreate_user(
     return user
 
 
-async def aset_role(
-    session: AsyncSession, *, user_id: UUID, new_role: str
-) -> User:
+async def aset_role(session: AsyncSession, *, user_id: UUID, new_role: str) -> User:
     _validate_role(new_role)
     user = await session.get(User, user_id)
     if user is None:
@@ -315,8 +303,7 @@ async def aset_role(
         ).scalar_one()
         if others == 0:
             raise LastAdminError(
-                "Refusing to demote the last active admin; promote another "
-                "user to admin first."
+                "Refusing to demote the last active admin; promote another user to admin first."
             )
 
     user.role = new_role
@@ -327,9 +314,7 @@ async def aset_role(
     return user
 
 
-async def aset_active(
-    session: AsyncSession, *, user_id: UUID, is_active: bool
-) -> User:
+async def aset_active(session: AsyncSession, *, user_id: UUID, is_active: bool) -> User:
     user = await session.get(User, user_id)
     if user is None:
         raise UserNotFound(str(user_id))

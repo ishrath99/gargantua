@@ -17,7 +17,7 @@ The tests follow the same fixture pattern as ``test_admin_agents.py``
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -30,7 +30,6 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import Agent, Team, User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures (mirror admin test pattern)
@@ -73,7 +72,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -89,7 +88,7 @@ def configured_env(
 
 
 @pytest.fixture
-def app(configured_env) -> FastAPI:  # noqa: ARG001
+def app(configured_env) -> FastAPI:
     from gargantua.api.auth import router as auth_router
     from gargantua.api.me import router as me_router
 
@@ -129,15 +128,11 @@ def seeded_admin(sync_session_maker) -> tuple[UUID, str]:
     from gargantua.auth.password import hash_password
 
     with sync_session_maker() as s:
-        u = User(
-            username="root", password_hash=hash_password("rootpw!1"), role="admin"
-        )
+        u = User(username="root", password_hash=hash_password("rootpw!1"), role="admin")
         s.add(u)
         s.commit()
         s.refresh(u)
-        return u.id, mint_access_token(
-            subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        return u.id, mint_access_token(subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -156,7 +151,7 @@ def _seed_agent(
             mcp_server_ids=mcp_server_ids or [],
         )
         if archived:
-            a.archived_at = datetime.now(tz=timezone.utc)
+            a.archived_at = datetime.now(tz=UTC)
         session.add(a)
         session.commit()
         session.refresh(a)
@@ -179,7 +174,7 @@ def _seed_team(
             member_agent_ids=member_agent_ids or [],
         )
         if archived:
-            t.archived_at = datetime.now(tz=timezone.utc)
+            t.archived_at = datetime.now(tz=UTC)
         session.add(t)
         session.commit()
         session.refresh(t)
@@ -310,9 +305,7 @@ def test_me_teams_returns_only_non_archived(
 ) -> None:
     _, token = seeded_user
     member = _seed_agent(sync_session_maker, name="m1")
-    active = _seed_team(
-        sync_session_maker, name="active-team", member_agent_ids=[member.id]
-    )
+    active = _seed_team(sync_session_maker, name="active-team", member_agent_ids=[member.id])
     _seed_team(sync_session_maker, name="archived-team", archived=True)
 
     r = client.get("/me/teams", headers=_auth(token))

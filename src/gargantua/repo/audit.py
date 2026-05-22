@@ -34,7 +34,6 @@ from sqlalchemy.orm import Session
 
 from gargantua.db.models import AuditLog
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -46,7 +45,7 @@ def _build_list_query(
     target_type: str | None,
     target_id: UUID | None,
     action: str | None,
-):
+) -> tuple[Any, Any]:
     stmt = select(AuditLog)
     count_stmt = select(func.count()).select_from(AuditLog)
 

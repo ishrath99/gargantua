@@ -41,7 +41,6 @@ from gargantua.db.session import get_session
 from gargantua.repo import users as users_repo
 from gargantua.settings import get_settings
 
-
 router = APIRouter()
 
 
@@ -124,11 +123,7 @@ async def login(
 ) -> TokenPair:
     """Exchange a username + password for an access/refresh token pair."""
     user = await _get_user_by_username(session, body.username)
-    if (
-        user is None
-        or not user.is_active
-        or not verify_password(body.password, user.password_hash)
-    ):
+    if user is None or not user.is_active or not verify_password(body.password, user.password_hash):
         # One generic response for every failure mode (unknown user, bad
         # password, deactivated account) so the route can't be used to
         # enumerate valid usernames or active accounts.

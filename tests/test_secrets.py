@@ -21,7 +21,6 @@ import os
 
 import pytest
 
-
 # Two distinct 32-byte keys we use across tests.
 _KEY_A = bytes(range(32))
 _KEY_B = bytes(reversed(range(32)))

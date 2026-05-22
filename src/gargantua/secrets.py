@@ -28,14 +28,13 @@ by :mod:`tests.test_secrets`; treat it as a contract operators rely on.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import json
 import os
-from typing import Any, Final
+from typing import Any, Final, cast
 
-from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-
 
 #: AES-GCM requires a 96-bit (12-byte) nonce.
 _IV_BYTES: Final[int] = 12
@@ -100,15 +99,12 @@ def active_kek() -> bytes:
 
     try:
         decoded = base64.b64decode(raw, validate=True)
-    except (ValueError, base64.binascii.Error) as exc:
-        raise InvalidMasterKey(
-            "MASTER_KEY is set but is not valid base64."
-        ) from exc
+    except (ValueError, binascii.Error) as exc:
+        raise InvalidMasterKey("MASTER_KEY is set but is not valid base64.") from exc
 
     if len(decoded) != _KEK_BYTES:
         raise InvalidMasterKey(
-            f"MASTER_KEY decoded to {len(decoded)} bytes; AES-256 requires "
-            f"exactly {_KEK_BYTES}."
+            f"MASTER_KEY decoded to {len(decoded)} bytes; AES-256 requires exactly {_KEK_BYTES}."
         )
     return decoded
 
@@ -140,9 +136,7 @@ def active_kek_fingerprint() -> str:
 # ---------------------------------------------------------------------------
 
 
-def encrypt_json_with_kek(
-    value: dict[str, Any], kek: bytes
-) -> tuple[bytes, bytes, str]:
+def encrypt_json_with_kek(value: dict[str, Any], kek: bytes) -> tuple[bytes, bytes, str]:
     """Encrypt ``value`` (JSON-serialised) under ``kek`` using AES-256-GCM.
 
     Returns ``(ciphertext, iv, kek_id)``.  ``iv`` is a fresh random
@@ -163,9 +157,7 @@ def encrypt_json_with_kek(
     return ciphertext, iv, kek_fingerprint(kek)
 
 
-def decrypt_json_with_kek(
-    ciphertext: bytes, iv: bytes, kek: bytes
-) -> dict[str, Any]:
+def decrypt_json_with_kek(ciphertext: bytes, iv: bytes, kek: bytes) -> dict[str, Any]:
     """Inverse of :func:`encrypt_json_with_kek`.
 
     Raises:
@@ -176,7 +168,7 @@ def decrypt_json_with_kek(
         raise InvalidMasterKey(f"KEK must be {_KEK_BYTES} bytes, got {len(kek)}")
     aesgcm = AESGCM(kek)
     plaintext = aesgcm.decrypt(iv, ciphertext, associated_data=None)
-    return json.loads(plaintext.decode("utf-8"))
+    return cast(dict[str, Any], json.loads(plaintext.decode("utf-8")))
 
 
 # ---------------------------------------------------------------------------

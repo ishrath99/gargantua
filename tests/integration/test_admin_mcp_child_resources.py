@@ -26,11 +26,9 @@ from gargantua.api.schemas import SECRET_PLACEHOLDER
 from gargantua.db.models import (
     AuditLog,
     MCPServer,
-    MCPServerChildResource,
     MCPServerType,
     User,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures (shared shape with test_admin_mcp_servers.py)
@@ -73,7 +71,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -83,16 +81,14 @@ def configured_env(
     monkeypatch.setenv("JWT_AUDIENCE", "gargantua")
     monkeypatch.setenv("JWT_ACCESS_TTL_SECONDS", "60")
     monkeypatch.setenv("DATABASE_URL_ASYNC", _db_ready)
-    monkeypatch.setenv(
-        "MASTER_KEY", base64.b64encode(b"\x77" * 32).decode("ascii")
-    )
+    monkeypatch.setenv("MASTER_KEY", base64.b64encode(b"\x77" * 32).decode("ascii"))
     _reset_caches()
     yield
     _reset_caches()
 
 
 @pytest.fixture
-def app(configured_env) -> FastAPI:  # noqa: ARG001
+def app(configured_env) -> FastAPI:
     from gargantua.api.admin import router as admin_router
     from gargantua.api.auth import router as auth_router
 
@@ -127,9 +123,7 @@ def seeded_admin(sync_session_maker) -> tuple[UUID, str]:
         s.add(u)
         s.commit()
         s.refresh(u)
-        return u.id, mint_access_token(
-            subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        return u.id, mint_access_token(subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
 
 
 @pytest.fixture
@@ -191,19 +185,14 @@ def _child_body(**overrides) -> dict:
 
 
 def test_list_children_401(client: TestClient) -> None:
-    assert (
-        client.get(f"/admin/mcp-servers/{uuid4()}/child-resources").status_code
-        == 401
-    )
+    assert client.get(f"/admin/mcp-servers/{uuid4()}/child-resources").status_code == 401
 
 
 def test_list_children_404_when_parent_missing(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get(
-        f"/admin/mcp-servers/{uuid4()}/child-resources", headers=_auth(token)
-    )
+    r = client.get(f"/admin/mcp-servers/{uuid4()}/child-resources", headers=_auth(token))
     assert r.status_code == 404
 
 
@@ -485,9 +474,7 @@ def test_disable_idempotent_writes_one_audit(
     with sync_session_maker() as s:
         rows = (
             s.execute(
-                select(AuditLog).where(
-                    AuditLog.action == "mcp_server_child_resource.disable"
-                )
+                select(AuditLog).where(AuditLog.action == "mcp_server_child_resource.disable")
             )
             .scalars()
             .all()

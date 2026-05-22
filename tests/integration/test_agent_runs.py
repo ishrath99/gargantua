@@ -19,10 +19,9 @@ against the real code.
 
 from __future__ import annotations
 
-import asyncio
 import json
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -44,7 +43,6 @@ from gargantua.db.models import (
     User,
 )
 from gargantua.mcp_cache import BuildPlan, MCPCache
-
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -104,7 +102,7 @@ class _FakeAgent:
     def set_result(self, result: Any) -> None:
         self._result = result
 
-    def arun(self, input: Any, **kwargs: Any) -> Any:  # noqa: A002
+    def arun(self, input: Any, **kwargs: Any) -> Any:
         self.arun_calls.append({"input": input, **kwargs})
         if kwargs.get("stream"):
             # Streaming: real Agno returns the async iterator directly.
@@ -159,7 +157,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -223,7 +221,7 @@ async def cache(backend: _StubBackend) -> AsyncIterator[MCPCache]:
 
 
 @pytest.fixture
-def app(configured_env, cache: MCPCache) -> FastAPI:  # noqa: ARG001
+def app(configured_env, cache: MCPCache) -> FastAPI:
     from gargantua.api.auth import router as auth_router
     from gargantua.api.runs import router as runs_router
 
@@ -284,16 +282,14 @@ def _seed_agent(
             child_resource_ids=child_resource_ids or [],
         )
         if archived:
-            a.archived_at = datetime.now(tz=timezone.utc)
+            a.archived_at = datetime.now(tz=UTC)
         session.add(a)
         session.commit()
         session.refresh(a)
         return a
 
 
-def _seed_mcp_server_with_child(
-    s: sessionmaker, *, child_name: str
-) -> tuple[UUID, UUID]:
+def _seed_mcp_server_with_child(s: sessionmaker, *, child_name: str) -> tuple[UUID, UUID]:
     """Seed a complete type/server/child chain.  Returns ``(server_id, child_id)``.
 
     The runtime route's ``_resolve_lease_keys_for_agent`` queries the
@@ -348,9 +344,7 @@ def test_run_without_token_returns_401(client: TestClient) -> None:
     assert r.status_code == 401
 
 
-def test_run_missing_agent_returns_404(
-    client: TestClient, seeded_user: tuple[UUID, str]
-) -> None:
+def test_run_missing_agent_returns_404(client: TestClient, seeded_user: tuple[UUID, str]) -> None:
     _, token = seeded_user
     r = client.post(
         f"/v1/agents/{uuid4()}/runs",
@@ -444,9 +438,7 @@ def test_non_streaming_with_mcp_servers_acquires_and_releases_leases(
     backend.add(sid_a, label="tool-a")
     backend.add(sid_b, label="tool-b")
 
-    agent_row = _seed_agent(
-        sync_session_maker, mcp_server_ids=[sid_a, sid_b]
-    )
+    agent_row = _seed_agent(sync_session_maker, mcp_server_ids=[sid_a, sid_b])
 
     fake = _FakeAgent()
     fake.set_result(_FakeRunOutput(run_id="r", content="ok"))
@@ -471,9 +463,7 @@ def test_non_streaming_with_mcp_servers_acquires_and_releases_leases(
 
     # And after the run, every cache entry's ref_count is back to zero.
     for snap in cache.inspect():
-        assert snap.ref_count == 0, (
-            f"server {snap.server_id} ref_count still {snap.ref_count}"
-        )
+        assert snap.ref_count == 0, f"server {snap.server_id} ref_count still {snap.ref_count}"
 
 
 def test_non_streaming_lease_failure_returns_503_and_no_leak(
@@ -492,9 +482,7 @@ def test_non_streaming_lease_failure_returns_503_and_no_leak(
     sid_bad = uuid4()  # NOT added to backend -> fetch returns None
     backend.add(sid_good)
 
-    agent_row = _seed_agent(
-        sync_session_maker, mcp_server_ids=[sid_good, sid_bad]
-    )
+    agent_row = _seed_agent(sync_session_maker, mcp_server_ids=[sid_good, sid_bad])
 
     fake = _FakeAgent()
     fake.set_result(_FakeRunOutput(run_id="r", content="x"))
@@ -583,7 +571,7 @@ def test_streaming_returns_sse_chunks_and_done_marker(
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/event-stream")
 
-    # SSE chunks: ``data: <json>\n\n`` × N, then ``data: [DONE]\n\n``.
+    # SSE chunks: ``data: <json>\n\n`` x N, then ``data: [DONE]\n\n``.
     chunks = [line for line in r.text.split("\n\n") if line.startswith("data: ")]
     assert len(chunks) == len(events) + 1, r.text
 
@@ -631,9 +619,7 @@ def test_streaming_releases_leases_after_stream_completes(
         _ = r.text
 
     for snap in cache.inspect():
-        assert snap.ref_count == 0, (
-            f"server {snap.server_id} ref_count still {snap.ref_count}"
-        )
+        assert snap.ref_count == 0, f"server {snap.server_id} ref_count still {snap.ref_count}"
 
 
 # ---------------------------------------------------------------------------
@@ -656,9 +642,7 @@ def test_run_with_child_resources_binds_cache_entry_to_child_set(
 
     # Seed a real type + server + child so the route's
     # ``aget_parent_map`` returns the right parent.
-    server_id, child_id = _seed_mcp_server_with_child(
-        sync_session_maker, child_name="petstore"
-    )
+    server_id, child_id = _seed_mcp_server_with_child(sync_session_maker, child_name="petstore")
     backend.add(server_id, label="swagger")
 
     agent_row = _seed_agent(
@@ -698,14 +682,10 @@ def test_run_with_child_resources_distinct_from_bare_run(
     and confirms the cache holds two distinct entries (different child
     sets) for the same server_id."""
     _, token = seeded_user
-    server_id, child_id = _seed_mcp_server_with_child(
-        sync_session_maker, child_name="orders"
-    )
+    server_id, child_id = _seed_mcp_server_with_child(sync_session_maker, child_name="orders")
     backend.add(server_id, label="swagger")
 
-    bare_agent = _seed_agent(
-        sync_session_maker, name="bare", mcp_server_ids=[server_id]
-    )
+    bare_agent = _seed_agent(sync_session_maker, name="bare", mcp_server_ids=[server_id])
     filtered_agent = _seed_agent(
         sync_session_maker,
         name="filtered",
@@ -747,9 +727,7 @@ def test_run_with_orphan_child_resource_silently_drops_it(
     missing filter — better than a hard 500 in our judgement, because
     the agent's mcp_server_ids reference is still valid."""
     _, token = seeded_user
-    server_id, _real_child = _seed_mcp_server_with_child(
-        sync_session_maker, child_name="real"
-    )
+    server_id, _real_child = _seed_mcp_server_with_child(sync_session_maker, child_name="real")
     backend.add(server_id, label="swagger")
 
     ghost_child = uuid4()  # not in the DB

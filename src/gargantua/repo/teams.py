@@ -29,7 +29,7 @@ Typed errors so the route layer can map them onto HTTP status codes:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Final
 from uuid import UUID
 
@@ -40,7 +40,6 @@ from sqlalchemy.orm import Session
 
 from gargantua.db.models import Agent, Team
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -48,9 +47,7 @@ from gargantua.db.models import Agent, Team
 
 #: Mirrors the DB-level CHECK constraint ``mode_in_known_set`` on
 #: ``gargantua_app.team``.  Keep in sync with the model.
-VALID_MODES: Final[frozenset[str]] = frozenset(
-    {"route", "coordinate", "collaborate"}
-)
+VALID_MODES: Final[frozenset[str]] = frozenset({"route", "coordinate", "collaborate"})
 
 
 _UPDATABLE_FIELDS: Final[frozenset[str]] = frozenset(
@@ -117,9 +114,7 @@ def _check_mode(mode: str | None) -> None:
         raise InvalidMode(mode)
 
 
-def _validate_members_sync(
-    session: Session, *, member_agent_ids: list[UUID]
-) -> None:
+def _validate_members_sync(session: Session, *, member_agent_ids: list[UUID]) -> None:
     """Raise :class:`InvalidMembers` if any agent id is missing or archived."""
     missing: list[UUID] = []
     archived: list[UUID] = []
@@ -129,27 +124,21 @@ def _validate_members_sync(
         return
 
     rows: dict[UUID, Agent] = {}
-    for row in session.execute(
-        select(Agent).where(Agent.id.in_(unique_ids))
-    ).scalars():
-        rows[row.id] = row
+    for agent_row in session.execute(select(Agent).where(Agent.id.in_(unique_ids))).scalars():
+        rows[agent_row.id] = agent_row
 
     for aid in unique_ids:
-        row = rows.get(aid)
-        if row is None:
+        agent = rows.get(aid)
+        if agent is None:
             missing.append(aid)
-        elif row.archived_at is not None:
+        elif agent.archived_at is not None:
             archived.append(aid)
 
     if missing or archived:
-        raise InvalidMembers(
-            missing_agent_ids=missing, archived_agent_ids=archived
-        )
+        raise InvalidMembers(missing_agent_ids=missing, archived_agent_ids=archived)
 
 
-async def _validate_members_async(
-    session: AsyncSession, *, member_agent_ids: list[UUID]
-) -> None:
+async def _validate_members_async(session: AsyncSession, *, member_agent_ids: list[UUID]) -> None:
     missing: list[UUID] = []
     archived: list[UUID] = []
 
@@ -157,9 +146,7 @@ async def _validate_members_async(
     if not unique_ids:
         return
 
-    result = await session.execute(
-        select(Agent).where(Agent.id.in_(unique_ids))
-    )
+    result = await session.execute(select(Agent).where(Agent.id.in_(unique_ids)))
     rows: dict[UUID, Agent] = {r.id: r for r in result.scalars()}
 
     for aid in unique_ids:
@@ -170,14 +157,12 @@ async def _validate_members_async(
             archived.append(aid)
 
     if missing or archived:
-        raise InvalidMembers(
-            missing_agent_ids=missing, archived_agent_ids=archived
-        )
+        raise InvalidMembers(missing_agent_ids=missing, archived_agent_ids=archived)
 
 
 def _build_list_query(
     *, search: str | None, include_archived: bool, mode_filter: str | None
-):
+) -> tuple[Any, Any]:
     stmt = select(Team)
     count_stmt = select(func.count()).select_from(Team)
 
@@ -218,9 +203,7 @@ def get_by_id(session: Session, team_id: UUID) -> Team | None:
 
 
 def get_by_name(session: Session, name: str) -> Team | None:
-    return session.execute(
-        select(Team).where(Team.name == name)
-    ).scalar_one_or_none()
+    return session.execute(select(Team).where(Team.name == name)).scalar_one_or_none()
 
 
 def list_teams(
@@ -280,9 +263,7 @@ def create(
     return row
 
 
-def update(
-    session: Session, *, team_id: UUID, **kwargs: Any
-) -> Team:
+def update(session: Session, *, team_id: UUID, **kwargs: Any) -> Team:
     """Partial update.  Re-validates members when ``member_agent_ids`` is
     in the payload; re-validates mode when ``mode`` is in the payload."""
     row = session.get(Team, team_id)
@@ -302,9 +283,7 @@ def update(
         _check_mode(changes["mode"])
 
     if "member_agent_ids" in changes:
-        _validate_members_sync(
-            session, member_agent_ids=changes["member_agent_ids"]
-        )
+        _validate_members_sync(session, member_agent_ids=changes["member_agent_ids"])
 
     # Capture the would-be name BEFORE flush so we can include it in
     # DuplicateName without lazy-loading from a rolled-back row.
@@ -330,7 +309,7 @@ def archive(session: Session, *, team_id: UUID) -> Team:
         raise NotFound(str(team_id))
     if row.archived_at is not None:
         return row
-    row.archived_at = datetime.now(tz=timezone.utc)
+    row.archived_at = datetime.now(tz=UTC)
     session.flush()
     session.refresh(row)
     return row
@@ -358,9 +337,7 @@ async def aget_by_id(session: AsyncSession, team_id: UUID) -> Team | None:
 
 
 async def aget_by_name(session: AsyncSession, name: str) -> Team | None:
-    result = await session.execute(
-        select(Team).where(Team.name == name)
-    )
+    result = await session.execute(select(Team).where(Team.name == name))
     return result.scalar_one_or_none()
 
 
@@ -398,9 +375,7 @@ async def acreate(
 ) -> Team:
     _check_mode(mode)
     member_agent_ids = member_agent_ids or []
-    await _validate_members_async(
-        session, member_agent_ids=member_agent_ids
-    )
+    await _validate_members_async(session, member_agent_ids=member_agent_ids)
 
     row = Team(
         name=name,
@@ -422,9 +397,7 @@ async def acreate(
     return row
 
 
-async def aupdate(
-    session: AsyncSession, *, team_id: UUID, **kwargs: Any
-) -> Team:
+async def aupdate(session: AsyncSession, *, team_id: UUID, **kwargs: Any) -> Team:
     row = await session.get(Team, team_id)
     if row is None:
         raise NotFound(str(team_id))
@@ -442,9 +415,7 @@ async def aupdate(
         _check_mode(changes["mode"])
 
     if "member_agent_ids" in changes:
-        await _validate_members_async(
-            session, member_agent_ids=changes["member_agent_ids"]
-        )
+        await _validate_members_async(session, member_agent_ids=changes["member_agent_ids"])
 
     attempted_name = changes.get("name", row.name)
     for k, v in changes.items():
@@ -468,7 +439,7 @@ async def aarchive(session: AsyncSession, *, team_id: UUID) -> Team:
         raise NotFound(str(team_id))
     if row.archived_at is not None:
         return row
-    row.archived_at = datetime.now(tz=timezone.utc)
+    row.archived_at = datetime.now(tz=UTC)
     await session.flush()
     await session.refresh(row)
     return row

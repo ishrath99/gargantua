@@ -15,8 +15,8 @@ to this PR:
 from __future__ import annotations
 
 import base64
-import os
 from collections.abc import Iterator
+from datetime import UTC
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -32,11 +32,9 @@ from sqlalchemy.orm import sessionmaker
 from gargantua.api.schemas import SECRET_PLACEHOLDER
 from gargantua.db.models import (
     AuditLog,
-    MCPServer,
     MCPServerType,
     User,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -79,7 +77,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -89,16 +87,14 @@ def configured_env(
     monkeypatch.setenv("JWT_AUDIENCE", "gargantua")
     monkeypatch.setenv("JWT_ACCESS_TTL_SECONDS", "60")
     monkeypatch.setenv("DATABASE_URL_ASYNC", _db_ready)
-    monkeypatch.setenv(
-        "MASTER_KEY", base64.b64encode(b"\x55" * 32).decode("ascii")
-    )
+    monkeypatch.setenv("MASTER_KEY", base64.b64encode(b"\x55" * 32).decode("ascii"))
     _reset_caches()
     yield
     _reset_caches()
 
 
 @pytest.fixture
-def app(configured_env) -> FastAPI:  # noqa: ARG001
+def app(configured_env) -> FastAPI:
     from gargantua.api.admin import router as admin_router
     from gargantua.api.auth import router as auth_router
 
@@ -133,9 +129,7 @@ def seeded_admin(sync_session_maker) -> tuple[UUID, str]:
         s.add(u)
         s.commit()
         s.refresh(u)
-        return u.id, mint_access_token(
-            subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        return u.id, mint_access_token(subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
 
 
 @pytest.fixture
@@ -160,8 +154,20 @@ def seeded_type(sync_session_maker) -> UUID:
             name="Postgres",
             mode="stdio",
             config_schema=[
-                {"name": "DSN", "label": "DSN", "type": "password", "is_secret": True, "required": True},
-                {"name": "READ_ONLY", "label": "Read only", "type": "select", "is_secret": False, "required": False},
+                {
+                    "name": "DSN",
+                    "label": "DSN",
+                    "type": "password",
+                    "is_secret": True,
+                    "required": True,
+                },
+                {
+                    "name": "READ_ONLY",
+                    "label": "Read only",
+                    "type": "select",
+                    "is_secret": False,
+                    "required": False,
+                },
             ],
         )
         s.add(t)
@@ -194,16 +200,12 @@ def test_list_servers_401_without_token(client: TestClient) -> None:
     assert client.get("/admin/mcp-servers").status_code == 401
 
 
-def test_list_servers_403_for_user_token(
-    client: TestClient, seeded_user: tuple[UUID, str]
-) -> None:
+def test_list_servers_403_for_user_token(client: TestClient, seeded_user: tuple[UUID, str]) -> None:
     _, token = seeded_user
     assert client.get("/admin/mcp-servers", headers=_auth(token)).status_code == 403
 
 
-def test_list_servers_200_for_admin(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_servers_200_for_admin(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     r = client.get("/admin/mcp-servers", headers=_auth(token))
     assert r.status_code == 200
@@ -222,9 +224,7 @@ def test_create_server_masks_secrets_in_response(
     sync_session_maker: sessionmaker,
 ) -> None:
     admin_id, token = seeded_admin
-    r = client.post(
-        "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
-    )
+    r = client.post("/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token))
     assert r.status_code == 201, r.text
     body = r.json()
 
@@ -267,18 +267,16 @@ def test_create_server_rejects_archived_type(
 ) -> None:
     _, token = seeded_admin
     with sync_session_maker() as s:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         t = MCPServerType(slug="x", name="X", mode="stdio")
-        t.archived_at = datetime.now(tz=timezone.utc)
+        t.archived_at = datetime.now(tz=UTC)
         s.add(t)
         s.commit()
         s.refresh(t)
         tid = t.id
 
-    r = client.post(
-        "/admin/mcp-servers", json=_server_body(tid), headers=_auth(token)
-    )
+    r = client.post("/admin/mcp-servers", json=_server_body(tid), headers=_auth(token))
     assert r.status_code == 422
     assert "archived" in r.text.lower()
 
@@ -335,9 +333,7 @@ def test_list_filters_by_type_and_env_tag(
     assert body["items"][0]["env_vars"]["DSN"] == SECRET_PLACEHOLDER
 
 
-def test_get_server_404(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_server_404(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     r = client.get(f"/admin/mcp-servers/{uuid4()}", headers=_auth(token))
     assert r.status_code == 404
@@ -420,15 +416,11 @@ def test_update_noop_writes_no_audit(
         "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
     ).json()
 
-    r = client.patch(
-        f"/admin/mcp-servers/{created['id']}", json={}, headers=_auth(token)
-    )
+    r = client.patch(f"/admin/mcp-servers/{created['id']}", json={}, headers=_auth(token))
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "mcp_server.update")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "mcp_server.update")).all()
     assert rows == []
 
 
@@ -445,18 +437,14 @@ def test_archive_hides_from_default_list(
         "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
     ).json()
 
-    r = client.post(
-        f"/admin/mcp-servers/{created['id']}/archive", headers=_auth(token)
-    )
+    r = client.post(f"/admin/mcp-servers/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["archived_at"] is not None
 
     body = client.get("/admin/mcp-servers", headers=_auth(token)).json()
     assert body["total"] == 0
 
-    body = client.get(
-        "/admin/mcp-servers?include_archived=true", headers=_auth(token)
-    ).json()
+    body = client.get("/admin/mcp-servers?include_archived=true", headers=_auth(token)).json()
     assert body["total"] == 1
 
 
@@ -475,9 +463,7 @@ def test_archive_idempotent_writes_one_audit(
 
     with sync_session_maker() as s:
         rows = (
-            s.execute(
-                select(AuditLog).where(AuditLog.action == "mcp_server.archive")
-            )
+            s.execute(select(AuditLog).where(AuditLog.action == "mcp_server.archive"))
             .scalars()
             .all()
         )
@@ -504,15 +490,11 @@ def test_get_under_mismatched_kek_returns_503(
     ).json()
 
     # Swap MASTER_KEY without rotating.
-    monkeypatch.setenv(
-        "MASTER_KEY", base64.b64encode(b"\x66" * 32).decode("ascii")
-    )
+    monkeypatch.setenv("MASTER_KEY", base64.b64encode(b"\x66" * 32).decode("ascii"))
     from gargantua.settings import get_settings
 
     get_settings.cache_clear()
 
-    r = client.get(
-        f"/admin/mcp-servers/{created['id']}", headers=_auth(token)
-    )
+    r = client.get(f"/admin/mcp-servers/{created['id']}", headers=_auth(token))
     assert r.status_code == 503
     assert "rotate" in r.json()["detail"].lower()

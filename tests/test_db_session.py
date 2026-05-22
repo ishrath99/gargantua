@@ -66,9 +66,7 @@ def test_cache_clear_rebuilds_engine_with_new_settings(
 ) -> None:
     from gargantua.db.session import get_engine
 
-    monkeypatch.setenv(
-        "DATABASE_URL_ASYNC", "postgresql+psycopg://u:p@a.example.com:5432/a"
-    )
+    monkeypatch.setenv("DATABASE_URL_ASYNC", "postgresql+psycopg://u:p@a.example.com:5432/a")
     first = get_engine()
     assert make_url(str(first.url)).host == "a.example.com"
 
@@ -77,9 +75,7 @@ def test_cache_clear_rebuilds_engine_with_new_settings(
     from gargantua.settings import get_settings
 
     get_settings.cache_clear()
-    monkeypatch.setenv(
-        "DATABASE_URL_ASYNC", "postgresql+psycopg://u:p@b.example.com:5432/b"
-    )
+    monkeypatch.setenv("DATABASE_URL_ASYNC", "postgresql+psycopg://u:p@b.example.com:5432/b")
 
     second = get_engine()
     assert second is not first

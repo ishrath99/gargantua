@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -20,7 +20,6 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures (mirror test_admin_users.py)
@@ -63,7 +62,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -79,7 +78,7 @@ def configured_env(
 
 
 @pytest.fixture
-def app(configured_env) -> FastAPI:  # noqa: ARG001
+def app(configured_env) -> FastAPI:
     from gargantua.api.admin import router as admin_router
     from gargantua.api.auth import router as auth_router
 
@@ -140,9 +139,7 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _seed_audit_rows(
-    client: TestClient, token: str
-) -> tuple[UUID, UUID]:
+def _seed_audit_rows(client: TestClient, token: str) -> tuple[UUID, UUID]:
     """Create two users via the API so audit rows exist for testing.
 
     Returns ``(first_user_id, second_user_id)``.
@@ -195,9 +192,7 @@ def test_list_audit_with_admin_token_returns_200(
 # ---------------------------------------------------------------------------
 
 
-def test_list_audit_newest_first(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_audit_newest_first(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     first, second = _seed_audit_rows(client, token)
 
@@ -209,16 +204,12 @@ def test_list_audit_newest_first(
     assert body["items"][1]["target_id"] == str(first)
 
 
-def test_list_audit_filters_by_action(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_audit_filters_by_action(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     first, _ = _seed_audit_rows(client, token)
 
     # Demote first user to admin then back to user so we get a role_update entry.
-    client.patch(
-        f"/admin/users/{first}/role", json={"role": "user"}, headers=_auth(token)
-    )
+    client.patch(f"/admin/users/{first}/role", json={"role": "user"}, headers=_auth(token))
 
     r = client.get("/admin/audit?action=user.create", headers=_auth(token))
     body = r.json()
@@ -226,20 +217,14 @@ def test_list_audit_filters_by_action(
     assert all(item["action"] == "user.create" for item in body["items"])
 
 
-def test_list_audit_filters_by_target(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_audit_filters_by_target(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     first, _ = _seed_audit_rows(client, token)
 
     # Promote first user — gives that target_id a second audit entry.
-    client.patch(
-        f"/admin/users/{first}/role", json={"role": "admin"}, headers=_auth(token)
-    )
+    client.patch(f"/admin/users/{first}/role", json={"role": "admin"}, headers=_auth(token))
 
-    r = client.get(
-        f"/admin/audit?target_type=user&target_id={first}", headers=_auth(token)
-    )
+    r = client.get(f"/admin/audit?target_type=user&target_id={first}", headers=_auth(token))
     body = r.json()
     assert body["total"] == 2
     assert all(item["target_id"] == str(first) for item in body["items"])
@@ -267,9 +252,7 @@ def test_list_audit_filters_by_actor(
         s.add(other)
         s.commit()
         s.refresh(other)
-        other_token = mint_access_token(
-            subject=str(other.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        other_token = mint_access_token(subject=str(other.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
         other_id = other.id
 
     client.post(
@@ -287,9 +270,7 @@ def test_list_audit_filters_by_actor(
     assert body["items"][0]["actor_id"] == str(other_id)
 
 
-def test_list_audit_paginates(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_audit_paginates(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     # Create 5 users → 5 audit rows.
     for i in range(5):
@@ -327,9 +308,7 @@ def test_get_audit_entry_returns_full_diff(
 
     # Find the audit row id via the list endpoint.
     list_body = client.get("/admin/audit", headers=_auth(token)).json()
-    entry_id = next(
-        row["id"] for row in list_body["items"] if row["target_id"] == str(first)
-    )
+    entry_id = next(row["id"] for row in list_body["items"] if row["target_id"] == str(first))
 
     r = client.get(f"/admin/audit/{entry_id}", headers=_auth(token))
     assert r.status_code == 200
@@ -351,9 +330,7 @@ def test_get_audit_entry_404_when_missing(
     assert r.status_code == 404
 
 
-def test_get_audit_entry_requires_admin(
-    client: TestClient, seeded_user: tuple[UUID, str]
-) -> None:
+def test_get_audit_entry_requires_admin(client: TestClient, seeded_user: tuple[UUID, str]) -> None:
     _, token = seeded_user
     r = client.get("/admin/audit/1", headers=_auth(token))
     # 403 (forbidden) takes precedence over 404 since require_admin runs

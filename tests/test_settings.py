@@ -43,9 +43,7 @@ def test_cors_origins_parses_to_list(
 
 
 def test_env_overrides_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv(
-        "DATABASE_URL", "postgresql+psycopg://user:pw@db:5432/test"
-    )
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pw@db:5432/test")
     s = Settings()
     assert s.database_url == "postgresql+psycopg://user:pw@db:5432/test"
 
@@ -78,9 +76,7 @@ def test_agno_debug_defaults_off(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.parametrize("raw", ["true", "True", "1", "yes", "on"])
-def test_agno_debug_truthy_env_enables(
-    monkeypatch: pytest.MonkeyPatch, raw: str
-) -> None:
+def test_agno_debug_truthy_env_enables(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
     """Pydantic-settings accepts several truthy spellings for booleans;
     documenting the ones we promise to honour."""
     monkeypatch.setenv("AGNO_DEBUG", raw)
@@ -89,9 +85,7 @@ def test_agno_debug_truthy_env_enables(
 
 
 @pytest.mark.parametrize("raw", ["false", "False", "0", "no", "off"])
-def test_agno_debug_falsy_env_stays_off(
-    monkeypatch: pytest.MonkeyPatch, raw: str
-) -> None:
+def test_agno_debug_falsy_env_stays_off(monkeypatch: pytest.MonkeyPatch, raw: str) -> None:
     """Explicit falsy values must not flip debug on.
 
     An *empty* string is rejected by pydantic-settings's boolean

@@ -24,8 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from gargantua.db.models import Agent, AuditLog, Team, User
-
+from gargantua.db.models import Agent, AuditLog, User
 
 # ---------------------------------------------------------------------------
 # Fixtures (mirror test_admin_agents.py)
@@ -68,7 +67,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -84,7 +83,7 @@ def configured_env(
 
 
 @pytest.fixture
-def app(configured_env) -> FastAPI:  # noqa: ARG001
+def app(configured_env) -> FastAPI:
     from gargantua.api.admin import router as admin_router
     from gargantua.api.auth import router as auth_router
 
@@ -119,9 +118,7 @@ def seeded_admin(sync_session_maker) -> tuple[UUID, str]:
         s.add(u)
         s.commit()
         s.refresh(u)
-        return u.id, mint_access_token(
-            subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        return u.id, mint_access_token(subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
 
 
 @pytest.fixture
@@ -289,14 +286,10 @@ def _seed_three_teams(client: TestClient, token: str) -> None:
         )
 
 
-def test_list_teams_paginates(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_teams_paginates(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     _seed_three_teams(client, token)
-    r = client.get(
-        "/admin/teams?page=1&page_size=2", headers=_auth(token)
-    )
+    r = client.get("/admin/teams?page=1&page_size=2", headers=_auth(token))
     body = r.json()
     assert body["total"] == 3
     assert len(body["items"]) == 2
@@ -313,9 +306,7 @@ def test_list_teams_search_matches_substring(
     assert {item["name"] for item in body["items"]} == {"beta", "betatron"}
 
 
-def test_list_teams_mode_filter(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_teams_mode_filter(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     _seed_three_teams(client, token)
     r = client.get("/admin/teams?mode=route", headers=_auth(token))
@@ -332,9 +323,7 @@ def test_list_teams_unknown_mode_filter_422(
     assert r.status_code == 422
 
 
-def test_get_team_by_id(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_team_by_id(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     created = client.post(
         "/admin/teams",
@@ -347,9 +336,7 @@ def test_get_team_by_id(
     assert r.json()["name"] == "ops"
 
 
-def test_get_team_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_team_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     r = client.get(f"/admin/teams/{uuid4()}", headers=_auth(token))
     assert r.status_code == 404
@@ -412,15 +399,11 @@ def test_update_team_no_op_no_audit(
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "team.update")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "team.update")).all()
     assert rows == []
 
 
-def test_update_team_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_update_team_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     r = client.patch(
         f"/admin/teams/{uuid4()}",
@@ -511,18 +494,14 @@ def test_archive_team_hides_from_default_list(
         headers=_auth(token),
     ).json()
 
-    r = client.post(
-        f"/admin/teams/{created['id']}/archive", headers=_auth(token)
-    )
+    r = client.post(f"/admin/teams/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["archived_at"] is not None
 
     body = client.get("/admin/teams", headers=_auth(token)).json()
     assert body["total"] == 0
 
-    body = client.get(
-        "/admin/teams?include_archived=true", headers=_auth(token)
-    ).json()
+    body = client.get("/admin/teams?include_archived=true", headers=_auth(token)).json()
     assert body["total"] == 1
 
     with sync_session_maker() as s:
@@ -544,12 +523,8 @@ def test_archive_then_unarchive_restores(
         headers=_auth(token),
     ).json()
 
-    client.post(
-        f"/admin/teams/{created['id']}/archive", headers=_auth(token)
-    )
-    r = client.post(
-        f"/admin/teams/{created['id']}/unarchive", headers=_auth(token)
-    )
+    client.post(f"/admin/teams/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/admin/teams/{created['id']}/unarchive", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["archived_at"] is None
 
@@ -566,26 +541,16 @@ def test_archive_already_archived_is_noop(
         headers=_auth(token),
     ).json()
 
-    client.post(
-        f"/admin/teams/{created['id']}/archive", headers=_auth(token)
-    )
-    r = client.post(
-        f"/admin/teams/{created['id']}/archive", headers=_auth(token)
-    )
+    client.post(f"/admin/teams/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/admin/teams/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "team.archive")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "team.archive")).all()
     assert len(rows) == 1
 
 
-def test_archive_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_archive_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.post(
-        f"/admin/teams/{uuid4()}/archive", headers=_auth(token)
-    )
+    r = client.post(f"/admin/teams/{uuid4()}/archive", headers=_auth(token))
     assert r.status_code == 404

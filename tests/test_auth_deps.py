@@ -14,7 +14,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -42,9 +41,7 @@ def _generate_keypair(out: Path) -> tuple[Path, Path]:
 
 
 @pytest.fixture
-def jwt_keys(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> tuple[Path, Path]:
+def jwt_keys(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path]:
     priv, pub = _generate_keypair(tmp_path / "keys")
     monkeypatch.setenv("JWT_PRIVATE_KEY_PATH", str(priv))
     monkeypatch.setenv("JWT_PUBLIC_KEY_PATH", str(pub))
@@ -95,9 +92,7 @@ def client(test_app: FastAPI) -> TestClient:
 def admin_token(jwt_keys: tuple[Path, Path]) -> str:
     from gargantua.auth.tokens import mint_access_token
 
-    return mint_access_token(
-        subject="admin-user-id", scopes=["agent_os:admin", "agent_os:user"]
-    )
+    return mint_access_token(subject="admin-user-id", scopes=["agent_os:admin", "agent_os:user"])
 
 
 @pytest.fixture
@@ -140,9 +135,7 @@ def test_garbage_token_returns_401(client: TestClient, jwt_keys: tuple[Path, Pat
     assert r.status_code == 401
 
 
-def test_refresh_token_rejected_on_protected_route(
-    client: TestClient, refresh_token: str
-) -> None:
+def test_refresh_token_rejected_on_protected_route(client: TestClient, refresh_token: str) -> None:
     """A refresh token must never be accepted as an access token."""
     r = client.get("/whoami", headers={"Authorization": f"Bearer {refresh_token}"})
     assert r.status_code == 401
@@ -179,9 +172,7 @@ def test_require_user_rejects_token_without_either_scope(
     from gargantua.auth.tokens import mint_access_token
 
     no_scope_token = mint_access_token(subject="ghost", scopes=[])
-    r = client.get(
-        "/user-only", headers={"Authorization": f"Bearer {no_scope_token}"}
-    )
+    r = client.get("/user-only", headers={"Authorization": f"Bearer {no_scope_token}"})
     assert r.status_code == 403
 
 

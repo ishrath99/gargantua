@@ -23,7 +23,6 @@ from gargantua.auth.password import hash_password
 from gargantua.db.models import User
 from gargantua.settings import get_settings
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -39,9 +38,7 @@ async def bootstrap_admin_if_needed(session: AsyncSession) -> bool:
     password = settings.bootstrap_admin_password
 
     if not username or not password:
-        logger.debug(
-            "bootstrap-admin skipped: BOOTSTRAP_ADMIN_USERNAME/PASSWORD not both set"
-        )
+        logger.debug("bootstrap-admin skipped: BOOTSTRAP_ADMIN_USERNAME/PASSWORD not both set")
         return False
 
     existing = await session.execute(select(func.count()).select_from(User))

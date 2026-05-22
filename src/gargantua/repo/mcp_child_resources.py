@@ -42,7 +42,6 @@ from gargantua.db.models import (
 )
 from gargantua.secrets import KekMismatch, decrypt_json, encrypt_json
 
-
 VALID_CHILD_TYPES: Final[frozenset[str]] = frozenset({"swagger"})
 
 
@@ -100,15 +99,12 @@ def _check_parent_sync(session: Session, parent_id: UUID) -> MCPServer:
     parent_type = session.get(MCPServerType, parent.type_id)
     if parent_type is None or not parent_type.supports_swagger_child:
         raise InvalidParentRef(
-            f"mcp_server {parent_id} (type {parent.type_id}) does not "
-            "support child resources."
+            f"mcp_server {parent_id} (type {parent.type_id}) does not support child resources."
         )
     return parent
 
 
-async def _check_parent_async(
-    session: AsyncSession, parent_id: UUID
-) -> MCPServer:
+async def _check_parent_async(session: AsyncSession, parent_id: UUID) -> MCPServer:
     parent = await session.get(MCPServer, parent_id)
     if parent is None:
         raise InvalidParentRef(f"mcp_server {parent_id} does not exist")
@@ -120,13 +116,14 @@ async def _check_parent_async(
     parent_type = await session.get(MCPServerType, parent.type_id)
     if parent_type is None or not parent_type.supports_swagger_child:
         raise InvalidParentRef(
-            f"mcp_server {parent_id} (type {parent.type_id}) does not "
-            "support child resources."
+            f"mcp_server {parent_id} (type {parent.type_id}) does not support child resources."
         )
     return parent
 
 
-def _encrypt_headers_or_none(headers: dict[str, Any] | None):
+def _encrypt_headers_or_none(
+    headers: dict[str, Any] | None,
+) -> tuple[bytes | None, bytes | None, str | None]:
     if headers is None or headers == {}:
         return None, None, None
     return encrypt_json(headers)
@@ -138,7 +135,7 @@ def _build_list_query(
     child_type: str | None,
     search: str | None,
     include_disabled: bool,
-):
+) -> tuple[Any, Any]:
     stmt = select(MCPServerChildResource).where(
         MCPServerChildResource.parent_mcp_server_id == parent_id
     )
@@ -190,11 +187,7 @@ def decrypt_headers(child: MCPServerChildResource) -> dict[str, Any]:
     Raises :class:`KekMismatchOnRead` if the stored ciphertext is under
     a different KEK than the one currently configured.
     """
-    if (
-        child.headers is None
-        and child.headers_iv is None
-        and child.headers_kek_id is None
-    ):
+    if child.headers is None and child.headers_iv is None and child.headers_kek_id is None:
         return {}
     if child.headers is None or child.headers_iv is None or child.headers_kek_id is None:
         raise KekMismatchOnRead(
@@ -216,9 +209,7 @@ def decrypt_headers(child: MCPServerChildResource) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def get_by_id(
-    session: Session, child_id: UUID
-) -> MCPServerChildResource | None:
+def get_by_id(session: Session, child_id: UUID) -> MCPServerChildResource | None:
     return session.get(MCPServerChildResource, child_id)
 
 
@@ -361,15 +352,11 @@ def disable(session: Session, *, child_id: UUID) -> MCPServerChildResource:
 # ---------------------------------------------------------------------------
 
 
-async def aget_by_id(
-    session: AsyncSession, child_id: UUID
-) -> MCPServerChildResource | None:
+async def aget_by_id(session: AsyncSession, child_id: UUID) -> MCPServerChildResource | None:
     return await session.get(MCPServerChildResource, child_id)
 
 
-async def aget_parent_map(
-    session: AsyncSession, child_ids: list[UUID]
-) -> dict[UUID, UUID]:
+async def aget_parent_map(session: AsyncSession, child_ids: list[UUID]) -> dict[UUID, UUID]:
     """Return ``{child_id: parent_mcp_server_id}`` for every row found.
 
     Used by the runtime route to group an agent's ``child_resource_ids``
@@ -384,9 +371,9 @@ async def aget_parent_map(
     """
     if not child_ids:
         return {}
-    stmt = select(
-        MCPServerChildResource.id, MCPServerChildResource.parent_mcp_server_id
-    ).where(MCPServerChildResource.id.in_(child_ids))
+    stmt = select(MCPServerChildResource.id, MCPServerChildResource.parent_mcp_server_id).where(
+        MCPServerChildResource.id.in_(child_ids)
+    )
     result = await session.execute(stmt)
     return {row.id: row.parent_mcp_server_id for row in result}
 
@@ -494,9 +481,7 @@ async def aupdate(
     return row
 
 
-async def aenable(
-    session: AsyncSession, *, child_id: UUID
-) -> MCPServerChildResource:
+async def aenable(session: AsyncSession, *, child_id: UUID) -> MCPServerChildResource:
     row = await session.get(MCPServerChildResource, child_id)
     if row is None:
         raise NotFound(str(child_id))
@@ -508,9 +493,7 @@ async def aenable(
     return row
 
 
-async def adisable(
-    session: AsyncSession, *, child_id: UUID
-) -> MCPServerChildResource:
+async def adisable(session: AsyncSession, *, child_id: UUID) -> MCPServerChildResource:
     row = await session.get(MCPServerChildResource, child_id)
     if row is None:
         raise NotFound(str(child_id))
@@ -523,13 +506,13 @@ async def adisable(
 
 
 __all__ = [
+    "VALID_CHILD_TYPES",
     "DuplicateName",
     "InvalidChildType",
     "InvalidParentRef",
     "KekMismatchOnRead",
     "NotFound",
     "RepoError",
-    "VALID_CHILD_TYPES",
     "acreate",
     "adisable",
     "aenable",

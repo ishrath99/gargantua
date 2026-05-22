@@ -75,7 +75,6 @@ from gargantua.templates import (
     load_templates,
 )
 
-
 router = APIRouter()
 
 
@@ -200,9 +199,7 @@ async def create_user_route(
     return UserOut.model_validate(user)
 
 
-@router.patch(
-    "/users/{user_id}/role", response_model=UserOut, tags=["admin"]
-)
+@router.patch("/users/{user_id}/role", response_model=UserOut, tags=["admin"])
 async def update_user_role_route(
     user_id: UUID,
     body: UserRoleUpdateIn,
@@ -221,9 +218,7 @@ async def update_user_role_route(
         return UserOut.model_validate(existing)
 
     try:
-        user = await users_repo.aset_role(
-            session, user_id=user_id, new_role=body.role
-        )
+        user = await users_repo.aset_role(session, user_id=user_id, new_role=body.role)
     except users_repo.UserNotFound as exc:
         raise HTTPException(status_code=404, detail="User not found") from exc
     except users_repo.LastAdminError as exc:
@@ -242,9 +237,7 @@ async def update_user_role_route(
     return UserOut.model_validate(user)
 
 
-@router.post(
-    "/users/{user_id}/deactivate", response_model=UserOut, tags=["admin"]
-)
+@router.post("/users/{user_id}/deactivate", response_model=UserOut, tags=["admin"])
 async def deactivate_user_route(
     user_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -253,9 +246,7 @@ async def deactivate_user_route(
     return await _set_user_active(session, claims, user_id=user_id, is_active=False)
 
 
-@router.post(
-    "/users/{user_id}/activate", response_model=UserOut, tags=["admin"]
-)
+@router.post("/users/{user_id}/activate", response_model=UserOut, tags=["admin"])
 async def activate_user_route(
     user_id: UUID,
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -281,9 +272,7 @@ async def _set_user_active(
         return UserOut.model_validate(existing)
 
     try:
-        user = await users_repo.aset_active(
-            session, user_id=user_id, is_active=is_active
-        )
+        user = await users_repo.aset_active(session, user_id=user_id, is_active=is_active)
     except users_repo.UserNotFound as exc:
         raise HTTPException(status_code=404, detail="User not found") from exc
     except users_repo.LastAdminError as exc:
@@ -380,9 +369,7 @@ def _type_to_audit_dict(row: MCPServerType) -> dict[str, Any]:
     }
 
 
-@router.get(
-    "/mcp-server-types", response_model=MCPServerTypeListOut, tags=["admin"]
-)
+@router.get("/mcp-server-types", response_model=MCPServerTypeListOut, tags=["admin"])
 async def list_mcp_server_types_route(
     session: Annotated[AsyncSession, Depends(get_session)],
     _claims: Annotated[TokenClaims, Depends(require_admin)],
@@ -459,9 +446,7 @@ async def create_mcp_server_type_route(
             supports_swagger_child=body.supports_swagger_child,
         )
     except types_repo.DuplicateSlug as exc:
-        raise HTTPException(
-            status_code=409, detail=f"Slug '{body.slug}' already exists"
-        ) from exc
+        raise HTTPException(status_code=409, detail=f"Slug '{body.slug}' already exists") from exc
     except types_repo.InvalidMode as exc:
         # Belt-and-braces; Pydantic regex would normally catch this.
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -500,8 +485,7 @@ async def update_mcp_server_type_route(
     update_kwargs: dict[str, Any] = body.model_dump(exclude_unset=True)
     if "config_schema" in update_kwargs and update_kwargs["config_schema"] is not None:
         update_kwargs["config_schema"] = [
-            f if isinstance(f, dict) else f.model_dump()
-            for f in update_kwargs["config_schema"]
+            f if isinstance(f, dict) else f.model_dump() for f in update_kwargs["config_schema"]
         ]
 
     # Empty body / all-None payload -> no-op, no audit row.
@@ -573,9 +557,8 @@ async def _toggle_archive(
 
     # No-op short-circuit BEFORE the repo call so we never write a
     # redundant audit row and never touch the DB unnecessarily.
-    already_in_state = (
-        (archive and existing.archived_at is not None)
-        or (not archive and existing.archived_at is None)
+    already_in_state = (archive and existing.archived_at is not None) or (
+        not archive and existing.archived_at is None
     )
     if already_in_state:
         return MCPServerTypeOut.model_validate(existing)
@@ -627,9 +610,7 @@ def _mask_env_vars(
     if type_row is None:
         return {k: SECRET_PLACEHOLDER for k in plaintext}
 
-    schema_by_name = {
-        field.get("name"): field for field in (type_row.config_schema or [])
-    }
+    schema_by_name = {field.get("name"): field for field in (type_row.config_schema or [])}
     out: dict[str, Any] = {}
     for k, v in plaintext.items():
         field = schema_by_name.get(k)
@@ -640,9 +621,7 @@ def _mask_env_vars(
     return out
 
 
-async def _server_to_out(
-    session: AsyncSession, row: MCPServer
-) -> MCPServerOut:
+async def _server_to_out(session: AsyncSession, row: MCPServer) -> MCPServerOut:
     """Build the masked-on-read response projection.
 
     Raises :class:`HTTPException(503)` if the stored ciphertext is
@@ -698,18 +677,14 @@ def _server_to_audit_dict(row: MCPServer, masked_env_vars: dict[str, Any]) -> di
     }
 
 
-async def _audit_dict_for_server(
-    session: AsyncSession, row: MCPServer
-) -> dict[str, Any]:
+async def _audit_dict_for_server(session: AsyncSession, row: MCPServer) -> dict[str, Any]:
     """Convenience: build the masked audit projection from a row."""
     plaintext = servers_repo.decrypt_env_vars(row)
     type_row = await session.get(MCPServerType, row.type_id)
     return _server_to_audit_dict(row, _mask_env_vars(plaintext, type_row))
 
 
-@router.get(
-    "/mcp-servers", response_model=MCPServerListOut, tags=["admin"]
-)
+@router.get("/mcp-servers", response_model=MCPServerListOut, tags=["admin"])
 async def list_mcp_servers_route(
     session: Annotated[AsyncSession, Depends(get_session)],
     _claims: Annotated[TokenClaims, Depends(require_admin)],
@@ -730,9 +705,7 @@ async def list_mcp_servers_route(
         include_archived=include_archived,
     )
     items = [await _server_to_out(session, r) for r in rows]
-    return MCPServerListOut(
-        page=page, page_size=page_size, total=total, items=items
-    )
+    return MCPServerListOut(page=page, page_size=page_size, total=total, items=items)
 
 
 @router.get(
@@ -825,9 +798,7 @@ async def update_mcp_server_route(
         ) from exc
 
     try:
-        row = await servers_repo.aupdate(
-            session, server_id=server_id, **update_kwargs
-        )
+        row = await servers_repo.aupdate(session, server_id=server_id, **update_kwargs)
     except servers_repo.DuplicateName as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except servers_repo.NotFound as exc:
@@ -860,9 +831,7 @@ async def archive_mcp_server_route(
     session: Annotated[AsyncSession, Depends(get_session)],
     claims: Annotated[TokenClaims, Depends(require_admin)],
 ) -> MCPServerOut:
-    return await _toggle_server_archive(
-        session, claims, server_id=server_id, archive=True
-    )
+    return await _toggle_server_archive(session, claims, server_id=server_id, archive=True)
 
 
 @router.post(
@@ -875,9 +844,7 @@ async def unarchive_mcp_server_route(
     session: Annotated[AsyncSession, Depends(get_session)],
     claims: Annotated[TokenClaims, Depends(require_admin)],
 ) -> MCPServerOut:
-    return await _toggle_server_archive(
-        session, claims, server_id=server_id, archive=False
-    )
+    return await _toggle_server_archive(session, claims, server_id=server_id, archive=False)
 
 
 async def _toggle_server_archive(
@@ -891,9 +858,8 @@ async def _toggle_server_archive(
     if existing is None:
         raise HTTPException(status_code=404, detail="MCP server not found")
 
-    already = (
-        (archive and existing.archived_at is not None)
-        or (not archive and existing.archived_at is None)
+    already = (archive and existing.archived_at is not None) or (
+        not archive and existing.archived_at is None
     )
     if already:
         return await _server_to_out(session, existing)
@@ -984,15 +950,11 @@ def _child_audit_payload(row: MCPServerChildResource) -> dict[str, Any]:
     return _child_to_audit_dict(row, _mask_headers(plaintext))
 
 
-async def _require_parent(
-    session: AsyncSession, server_id: UUID
-) -> MCPServer:
+async def _require_parent(session: AsyncSession, server_id: UUID) -> MCPServer:
     """Resolve the parent server or raise 404; shared across nested routes."""
     parent = await servers_repo.aget_by_id(session, server_id)
     if parent is None:
-        raise HTTPException(
-            status_code=404, detail="MCP server (parent) not found"
-        )
+        raise HTTPException(status_code=404, detail="MCP server (parent) not found")
     return parent
 
 
@@ -1002,9 +964,7 @@ async def _require_child_under_parent(
     """Resolve a child resource and confirm it belongs to ``server_id``."""
     child = await children_repo.aget_by_id(session, child_id)
     if child is None or child.parent_mcp_server_id != server_id:
-        raise HTTPException(
-            status_code=404, detail="MCP server child resource not found"
-        )
+        raise HTTPException(status_code=404, detail="MCP server child resource not found")
     return child
 
 
@@ -1122,9 +1082,7 @@ async def update_child_resource_route(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     try:
-        row = await children_repo.aupdate(
-            session, child_id=child_id, **update_kwargs
-        )
+        row = await children_repo.aupdate(session, child_id=child_id, **update_kwargs)
     except children_repo.DuplicateName as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except children_repo.NotFound as exc:
@@ -1208,7 +1166,9 @@ async def _toggle_child_enabled(
     await audit_repo.arecord(
         session,
         actor_id=_actor_id(claims),
-        action="mcp_server_child_resource.enable" if enable else "mcp_server_child_resource.disable",
+        action="mcp_server_child_resource.enable"
+        if enable
+        else "mcp_server_child_resource.disable",
         target_type="mcp_server_child_resource",
         target_id=row.id,
         before=before,
@@ -1238,9 +1198,7 @@ def _agent_to_audit_dict(row: Agent) -> dict[str, Any]:
         "instructions": row.instructions,
         "tools_config": row.tools_config,
         "mcp_server_ids": [str(x) for x in (row.mcp_server_ids or [])],
-        "child_resource_ids": [
-            str(x) for x in (row.child_resource_ids or [])
-        ],
+        "child_resource_ids": [str(x) for x in (row.child_resource_ids or [])],
         "agent_config": row.agent_config,
         "archived_at": row.archived_at.isoformat() if row.archived_at else None,
         "version": row.version,
@@ -1258,18 +1216,10 @@ def _raise_invalid_refs(exc: agents_repo.InvalidRefs) -> None:
         detail={
             "message": str(exc),
             "missing_mcp_server_ids": [str(x) for x in exc.missing_mcp_server_ids],
-            "archived_mcp_server_ids": [
-                str(x) for x in exc.archived_mcp_server_ids
-            ],
-            "missing_child_resource_ids": [
-                str(x) for x in exc.missing_child_resource_ids
-            ],
-            "disabled_child_resource_ids": [
-                str(x) for x in exc.disabled_child_resource_ids
-            ],
-            "orphan_child_resource_ids": [
-                str(x) for x in exc.orphan_child_resource_ids
-            ],
+            "archived_mcp_server_ids": [str(x) for x in exc.archived_mcp_server_ids],
+            "missing_child_resource_ids": [str(x) for x in exc.missing_child_resource_ids],
+            "disabled_child_resource_ids": [str(x) for x in exc.disabled_child_resource_ids],
+            "orphan_child_resource_ids": [str(x) for x in exc.orphan_child_resource_ids],
         },
     )
 
@@ -1367,9 +1317,7 @@ async def create_agent_route(
     return AgentOut.model_validate(row)
 
 
-@router.patch(
-    "/agents/{agent_id}", response_model=AgentOut, tags=["admin"]
-)
+@router.patch("/agents/{agent_id}", response_model=AgentOut, tags=["admin"])
 async def update_agent_route(
     agent_id: UUID,
     body: AgentUpdateIn,
@@ -1387,9 +1335,7 @@ async def update_agent_route(
     before = _agent_to_audit_dict(existing)
 
     try:
-        row = await agents_repo.aupdate(
-            session, agent_id=agent_id, **update_kwargs
-        )
+        row = await agents_repo.aupdate(session, agent_id=agent_id, **update_kwargs)
     except agents_repo.NotFound as exc:
         raise HTTPException(status_code=404, detail="Agent not found") from exc
     except agents_repo.DuplicateName as exc:
@@ -1426,9 +1372,7 @@ async def archive_agent_route(
     session: Annotated[AsyncSession, Depends(get_session)],
     claims: Annotated[TokenClaims, Depends(require_admin)],
 ) -> AgentOut:
-    return await _toggle_agent_archive(
-        session, claims, agent_id=agent_id, archive=True
-    )
+    return await _toggle_agent_archive(session, claims, agent_id=agent_id, archive=True)
 
 
 @router.post(
@@ -1441,9 +1385,7 @@ async def unarchive_agent_route(
     session: Annotated[AsyncSession, Depends(get_session)],
     claims: Annotated[TokenClaims, Depends(require_admin)],
 ) -> AgentOut:
-    return await _toggle_agent_archive(
-        session, claims, agent_id=agent_id, archive=False
-    )
+    return await _toggle_agent_archive(session, claims, agent_id=agent_id, archive=False)
 
 
 async def _toggle_agent_archive(
@@ -1457,9 +1399,8 @@ async def _toggle_agent_archive(
     if existing is None:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    already = (
-        (archive and existing.archived_at is not None)
-        or (not archive and existing.archived_at is None)
+    already = (archive and existing.archived_at is not None) or (
+        not archive and existing.archived_at is None
     )
     if already:
         return AgentOut.model_validate(existing)
@@ -1612,9 +1553,7 @@ async def create_team_route(
     return TeamOut.model_validate(row)
 
 
-@router.patch(
-    "/teams/{team_id}", response_model=TeamOut, tags=["admin"]
-)
+@router.patch("/teams/{team_id}", response_model=TeamOut, tags=["admin"])
 async def update_team_route(
     team_id: UUID,
     body: TeamUpdateIn,
@@ -1632,9 +1571,7 @@ async def update_team_route(
     before = _team_to_audit_dict(existing)
 
     try:
-        row = await teams_repo.aupdate(
-            session, team_id=team_id, **update_kwargs
-        )
+        row = await teams_repo.aupdate(session, team_id=team_id, **update_kwargs)
     except teams_repo.NotFound as exc:
         raise HTTPException(status_code=404, detail="Team not found") from exc
     except teams_repo.DuplicateName as exc:
@@ -1671,9 +1608,7 @@ async def archive_team_route(
     session: Annotated[AsyncSession, Depends(get_session)],
     claims: Annotated[TokenClaims, Depends(require_admin)],
 ) -> TeamOut:
-    return await _toggle_team_archive(
-        session, claims, team_id=team_id, archive=True
-    )
+    return await _toggle_team_archive(session, claims, team_id=team_id, archive=True)
 
 
 @router.post(
@@ -1686,9 +1621,7 @@ async def unarchive_team_route(
     session: Annotated[AsyncSession, Depends(get_session)],
     claims: Annotated[TokenClaims, Depends(require_admin)],
 ) -> TeamOut:
-    return await _toggle_team_archive(
-        session, claims, team_id=team_id, archive=False
-    )
+    return await _toggle_team_archive(session, claims, team_id=team_id, archive=False)
 
 
 async def _toggle_team_archive(
@@ -1702,9 +1635,8 @@ async def _toggle_team_archive(
     if existing is None:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    already = (
-        (archive and existing.archived_at is not None)
-        or (not archive and existing.archived_at is None)
+    already = (archive and existing.archived_at is not None) or (
+        not archive and existing.archived_at is None
     )
     if already:
         return TeamOut.model_validate(existing)
@@ -1744,7 +1676,7 @@ def _get_mcp_cache(request: Request) -> MCPCache:
     misconfigured environment (e.g. the lifespan never ran) — return a
     clear 503 rather than a confusing AttributeError.
     """
-    cache = getattr(request.app.state, "mcp_cache", None)
+    cache: MCPCache | None = getattr(request.app.state, "mcp_cache", None)
     if cache is None:
         raise HTTPException(
             status_code=503,
@@ -1884,7 +1816,5 @@ async def get_agent_template_route(
     try:
         tpl = load_template_by_slug(slug)
     except TemplateNotFound as exc:
-        raise HTTPException(
-            status_code=404, detail=f"Agent template '{slug}' not found"
-        ) from exc
+        raise HTTPException(status_code=404, detail=f"Agent template '{slug}' not found") from exc
     return _template_to_out(tpl)

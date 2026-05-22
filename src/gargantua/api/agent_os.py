@@ -34,9 +34,7 @@ from gargantua.auth import SCOPE_ADMIN
 from gargantua.settings import Settings
 
 
-def build_agent_os_app(
-    settings: Settings, *, agno_db: PostgresDb | None = None
-) -> FastAPI:
+def build_agent_os_app(settings: Settings, *, agno_db: PostgresDb | None = None) -> FastAPI:
     """Return a fully-wired AgentOS sub-application.
 
     The caller is expected to mount this at ``/v1`` on the parent app.

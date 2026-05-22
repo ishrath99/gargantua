@@ -61,6 +61,7 @@ dev = [
     "httpx>=0.27",
     "ruff>=0.7",
     "mypy>=1.11",
+    "types-PyYAML>=6.0",
 ]
 
 [project.scripts]
@@ -94,6 +95,32 @@ select = [
 ]
 ignore = [
     "E501",             # line-length handled by formatter
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# These callables return immutable sentinels by design in FastAPI / typer /
+# Pydantic and are idiomatic in argument defaults; B008 is a false positive
+# for them.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Security",
+    "typer.Option",
+    "typer.Argument",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "B008",   # FastAPI/typer Depends/Option pattern, common in test fixtures
+    "B017",   # pytest.raises(Exception) is shorthand in crypto failure tests
+    "F841",   # tests often bind for readability even when value is unused
+    "RUF012", # mutable class defaults are fine for test recorders
 ]
 
 [tool.ruff.format]

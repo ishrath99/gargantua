@@ -26,9 +26,9 @@ from uuid import uuid4
 from agno.agent import Agent as AgnoAgent
 from agno.team import Team as AgnoTeam
 
-from gargantua.db.models import Agent as AgentRow, Team as TeamRow
+from gargantua.db.models import Agent as AgentRow
+from gargantua.db.models import Team as TeamRow
 from gargantua.registry import build_agno_agent, build_agno_team
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -258,12 +258,8 @@ def test_build_agno_team_honors_team_config_instructions() -> None:
     """``team_config['instructions']`` overrides whatever Agno's default
     would have been."""
     member = _bare_member()
-    row = _team_row(
-        team_config={"instructions": "Coordinate the SREs."}
-    )
-    team = build_agno_team(
-        row, members=[member], model="openai:gpt-4o-mini"
-    )
+    row = _team_row(team_config={"instructions": "Coordinate the SREs."})
+    team = build_agno_team(row, members=[member], model="openai:gpt-4o-mini")
     assert team.instructions == "Coordinate the SREs."
 
 
@@ -271,9 +267,7 @@ def test_build_agno_team_passes_db_when_provided() -> None:
     member = _bare_member()
     sentinel = object()
     row = _team_row()
-    team = build_agno_team(
-        row, members=[member], model="openai:gpt-4o-mini", db=sentinel
-    )
+    team = build_agno_team(row, members=[member], model="openai:gpt-4o-mini", db=sentinel)
     assert team.db is sentinel
 
 
@@ -283,9 +277,7 @@ def test_build_agno_team_supports_all_three_modes() -> None:
     member = _bare_member()
     for mode in ("route", "coordinate", "collaborate"):
         row = _team_row(mode=mode)
-        team = build_agno_team(
-            row, members=[member], model="openai:gpt-4o-mini"
-        )
+        team = build_agno_team(row, members=[member], model="openai:gpt-4o-mini")
         assert team.mode == mode
 
 
@@ -314,7 +306,5 @@ def test_build_agno_team_debug_propagated() -> None:
     Agent tests above."""
     member = _bare_member()
     row = _team_row()
-    team = build_agno_team(
-        row, members=[member], model="openai:gpt-4o-mini", debug=True
-    )
+    team = build_agno_team(row, members=[member], model="openai:gpt-4o-mini", debug=True)
     assert team.debug_mode is True

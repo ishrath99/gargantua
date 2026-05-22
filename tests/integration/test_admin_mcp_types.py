@@ -23,7 +23,6 @@ from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import AuditLog, MCPServerType, User
 
-
 # ---------------------------------------------------------------------------
 # Fixtures (mirror test_admin_users.py)
 # ---------------------------------------------------------------------------
@@ -65,7 +64,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -81,7 +80,7 @@ def configured_env(
 
 
 @pytest.fixture
-def app(configured_env) -> FastAPI:  # noqa: ARG001
+def app(configured_env) -> FastAPI:
     from gargantua.api.admin import router as admin_router
     from gargantua.api.auth import router as auth_router
 
@@ -116,9 +115,7 @@ def seeded_admin(sync_session_maker) -> tuple[UUID, str]:
         s.add(u)
         s.commit()
         s.refresh(u)
-        return u.id, mint_access_token(
-            subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        return u.id, mint_access_token(subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
 
 
 @pytest.fixture
@@ -211,9 +208,7 @@ def test_create_type_201_and_audit_logged(
     assert created["config_schema"][0]["name"] == "DSN"
 
     with sync_session_maker() as s:
-        row = s.execute(
-            select(MCPServerType).where(MCPServerType.slug == "postgres")
-        ).scalar_one()
+        row = s.execute(select(MCPServerType).where(MCPServerType.slug == "postgres")).scalar_one()
         audit = s.execute(
             select(AuditLog)
             .where(AuditLog.action == "mcp_server_type.create")
@@ -279,16 +274,12 @@ def test_list_types_paginates_and_filters_by_mode(
     _, token = seeded_admin
     _seed_three(client, token)
 
-    r = client.get(
-        "/admin/mcp-server-types?mode=stdio", headers=_auth(token)
-    )
+    r = client.get("/admin/mcp-server-types?mode=stdio", headers=_auth(token))
     body = r.json()
     assert body["total"] == 1
     assert body["items"][0]["slug"] == "postgres"
 
-    r = client.get(
-        "/admin/mcp-server-types?page=1&page_size=2", headers=_auth(token)
-    )
+    r = client.get("/admin/mcp-server-types?page=1&page_size=2", headers=_auth(token))
     assert r.json()["total"] == 3
     assert len(r.json()["items"]) == 2
 
@@ -299,17 +290,13 @@ def test_list_types_search_matches_substring(
     _, token = seeded_admin
     _seed_three(client, token)
 
-    r = client.get(
-        "/admin/mcp-server-types?search=search", headers=_auth(token)
-    )
+    r = client.get("/admin/mcp-server-types?search=search", headers=_auth(token))
     body = r.json()
     assert body["total"] == 1
     assert body["items"][0]["slug"] == "opensearch"
 
 
-def test_get_type_by_id(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_type_by_id(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     created = client.post(
         "/admin/mcp-server-types",
@@ -317,20 +304,14 @@ def test_get_type_by_id(
         headers=_auth(token),
     ).json()
 
-    r = client.get(
-        f"/admin/mcp-server-types/{created['id']}", headers=_auth(token)
-    )
+    r = client.get(f"/admin/mcp-server-types/{created['id']}", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["slug"] == "postgres"
 
 
-def test_get_type_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_type_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.get(
-        f"/admin/mcp-server-types/{uuid4()}", headers=_auth(token)
-    )
+    r = client.get(f"/admin/mcp-server-types/{uuid4()}", headers=_auth(token))
     assert r.status_code == 404
 
 
@@ -398,15 +379,11 @@ def test_update_type_no_op_does_not_write_audit(
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "mcp_server_type.update")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "mcp_server_type.update")).all()
     assert rows == []
 
 
-def test_update_type_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_update_type_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     r = client.patch(
         f"/admin/mcp-server-types/{uuid4()}",
@@ -463,9 +440,7 @@ def test_archive_type_hides_from_default_list(
     assert body["total"] == 0
 
     # include_archived surfaces it.
-    body = client.get(
-        "/admin/mcp-server-types?include_archived=true", headers=_auth(token)
-    ).json()
+    body = client.get("/admin/mcp-server-types?include_archived=true", headers=_auth(token)).json()
     assert body["total"] == 1
 
     with sync_session_maker() as s:
@@ -511,27 +486,17 @@ def test_archive_already_archived_is_noop(
         headers=_auth(token),
     ).json()
 
-    client.post(
-        f"/admin/mcp-server-types/{created['id']}/archive", headers=_auth(token)
-    )
-    r = client.post(
-        f"/admin/mcp-server-types/{created['id']}/archive", headers=_auth(token)
-    )
+    client.post(f"/admin/mcp-server-types/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/admin/mcp-server-types/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "mcp_server_type.archive")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "mcp_server_type.archive")).all()
     # Only one audit row, not two — second archive is a no-op.
     assert len(rows) == 1
 
 
-def test_archive_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_archive_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.post(
-        f"/admin/mcp-server-types/{uuid4()}/archive", headers=_auth(token)
-    )
+    r = client.post(f"/admin/mcp-server-types/{uuid4()}/archive", headers=_auth(token))
     assert r.status_code == 404

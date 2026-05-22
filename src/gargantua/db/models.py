@@ -27,7 +27,6 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
-    Integer,
     LargeBinary,
     String,
     Text,
@@ -35,7 +34,8 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from gargantua.db.base import Base
@@ -59,16 +59,16 @@ class User(Base):
         CheckConstraint("role IN ('admin', 'user')", name="role_in_known_set"),
     )
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT)
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT
+    )
     username: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     #: When ``False`` the account is locked: login refuses authentication
     #: and the user cannot be used as an actor on any admin route.  Toggled
     #: via ``/admin/users/{id}/deactivate|activate``.
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, server_default=text("true")
-    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -96,7 +96,9 @@ class MCPServerType(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT)
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT
+    )
     slug: Mapped[str] = mapped_column(String(64), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
@@ -140,12 +142,12 @@ class MCPServer(Base):
 
     __tablename__ = "mcp_server"
     __table_args__ = (
-        UniqueConstraint(
-            "type_id", "name", "env_tag", name="uq_mcp_server_type_name_env"
-        ),
+        UniqueConstraint("type_id", "name", "env_tag", name="uq_mcp_server_type_name_env"),
     )
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT)
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT
+    )
     type_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("mcp_server_type.id", ondelete="RESTRICT"),
@@ -188,13 +190,13 @@ class MCPServerChildResource(Base):
 
     __tablename__ = "mcp_server_child_resource"
     __table_args__ = (
-        UniqueConstraint(
-            "parent_mcp_server_id", "name", name="uq_mcp_server_child_parent_name"
-        ),
+        UniqueConstraint("parent_mcp_server_id", "name", name="uq_mcp_server_child_parent_name"),
         CheckConstraint("type IN ('swagger')", name="type_in_known_set"),
     )
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT)
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT
+    )
     parent_mcp_server_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("mcp_server.id", ondelete="CASCADE"),
@@ -229,7 +231,9 @@ class Agent(Base):
     __tablename__ = "agent"
     __table_args__ = (UniqueConstraint("name", name="uq_agent_name"),)
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT)
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     model: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -279,7 +283,9 @@ class Team(Base):
         ),
     )
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT)
+    id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), primary_key=True, server_default=_UUID_DEFAULT
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     mode: Mapped[str] = mapped_column(String(32), nullable=False)

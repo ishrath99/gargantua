@@ -15,9 +15,9 @@ Owns three things:
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import AsyncIterator
 
 from agno.db.postgres import PostgresDb
 from fastapi import FastAPI
@@ -35,7 +35,6 @@ from gargantua.db.session import dispose_engine, get_session_factory
 from gargantua.mcp_cache import MCPCache, make_row_fetcher
 from gargantua.mcp_tools import build_mcp_tools
 from gargantua.settings import get_settings
-
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +68,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         set_log_level_to_debug()  # "agno" logger
         set_log_level_to_debug(source_type="team")  # "agno-team"
         logger.info(
-            "agno: debug logging enabled (AGNO_DEBUG=true); "
-            "expect verbose run traces on stderr"
+            "agno: debug logging enabled (AGNO_DEBUG=true); expect verbose run traces on stderr"
         )
 
     # Bootstrap admin runs unconditionally; the helper itself is a no-op when
@@ -81,7 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         factory = get_session_factory()
         async with factory() as session:
             await bootstrap_admin_if_needed(session)
-    except Exception:  # noqa: BLE001 — startup must continue even on error
+    except Exception:
         logger.exception("bootstrap-admin failed; continuing startup")
 
     # MCP cache lives on ``app.state`` so admin routes and the runtime
@@ -92,9 +90,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     cache = MCPCache(
         row_fetcher=make_row_fetcher(get_session_factory(), build_mcp_tools),
         idle_ttl=timedelta(seconds=settings.mcp_cache_idle_ttl_seconds),
-        reap_interval=timedelta(
-            seconds=settings.mcp_cache_reaper_interval_seconds
-        ),
+        reap_interval=timedelta(seconds=settings.mcp_cache_reaper_interval_seconds),
     )
     await cache.start()
     app.state.mcp_cache = cache

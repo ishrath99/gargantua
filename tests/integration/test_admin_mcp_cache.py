@@ -15,7 +15,7 @@ admin surface end-to-end:
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -30,7 +30,6 @@ from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import AuditLog, User
 from gargantua.mcp_cache import BuildPlan, MCPCache
-
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -123,7 +122,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -157,7 +156,7 @@ async def cache(backend: _StubBackend) -> AsyncIterator[MCPCache]:
 
 
 @pytest.fixture
-def app(configured_env, cache: MCPCache) -> FastAPI:  # noqa: ARG001
+def app(configured_env, cache: MCPCache) -> FastAPI:
     from gargantua.api.admin import router as admin_router
     from gargantua.api.auth import router as auth_router
 
@@ -195,9 +194,7 @@ def seeded_admin(sync_session_maker) -> tuple[UUID, str]:
         s.add(u)
         s.commit()
         s.refresh(u)
-        return u.id, mint_access_token(
-            subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        return u.id, mint_access_token(subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
 
 
 @pytest.fixture
@@ -321,9 +318,7 @@ async def test_evict_closes_entry_and_audits(
     lease = await cache.acquire(sid)
     await lease.release()
 
-    r = client.post(
-        f"/admin/mcp-cache/{sid}/evict", headers=_auth(token)
-    )
+    r = client.post(f"/admin/mcp-cache/{sid}/evict", headers=_auth(token))
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["evicted"] is True
@@ -352,15 +347,11 @@ async def test_evict_returns_404_when_not_cached(
     operator should know nothing happened (and no audit row should
     appear, to avoid noise)."""
     _, token = seeded_admin
-    r = client.post(
-        f"/admin/mcp-cache/{uuid4()}/evict", headers=_auth(token)
-    )
+    r = client.post(f"/admin/mcp-cache/{uuid4()}/evict", headers=_auth(token))
     assert r.status_code == 404
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "mcp_cache.evict")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "mcp_cache.evict")).all()
     assert rows == []
 
 
@@ -373,7 +364,5 @@ def test_evict_with_user_token_returns_403(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.post(
-        f"/admin/mcp-cache/{uuid4()}/evict", headers=_auth(token)
-    )
+    r = client.post(f"/admin/mcp-cache/{uuid4()}/evict", headers=_auth(token))
     assert r.status_code == 403

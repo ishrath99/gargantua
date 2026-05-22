@@ -8,8 +8,7 @@ duplicate-name handling, enable/disable idempotency.
 from __future__ import annotations
 
 import base64
-from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -21,7 +20,6 @@ from gargantua.db.models import (
     MCPServerChildResource,
     MCPServerType,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -60,11 +58,9 @@ def _seed_type_and_parent(
     s.add(t)
     s.flush()
 
-    p = MCPServer(
-        type_id=t.id, name="api-gw", env_tag="prod"
-    )
+    p = MCPServer(type_id=t.id, name="api-gw", env_tag="prod")
     if parent_archived:
-        p.archived_at = datetime.now(tz=timezone.utc)
+        p.archived_at = datetime.now(tz=UTC)
     s.add(p)
     s.flush()
     return t, p
@@ -104,9 +100,7 @@ def test_create_encrypts_headers(sync_session_maker, master_key) -> None:
     assert decrypt_headers(row) == {"Authorization": "Bearer xyz"}
 
 
-def test_create_no_headers_writes_nulls(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_no_headers_writes_nulls(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import create, decrypt_headers
 
     with sync_session_maker() as s:
@@ -134,9 +128,7 @@ def test_create_no_headers_writes_nulls(
     assert decrypt_headers(row) == {}
 
 
-def test_create_rejects_unknown_parent(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_rejects_unknown_parent(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import InvalidParentRef, create
 
     with sync_session_maker() as s:
@@ -150,9 +142,7 @@ def test_create_rejects_unknown_parent(
             )
 
 
-def test_create_rejects_archived_parent(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_rejects_archived_parent(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import InvalidParentRef, create
 
     with sync_session_maker() as s:
@@ -171,9 +161,7 @@ def test_create_rejects_archived_parent(
             )
 
 
-def test_create_rejects_parent_type_that_disallows_children(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_rejects_parent_type_that_disallows_children(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import InvalidParentRef, create
 
     with sync_session_maker() as s:
@@ -192,9 +180,7 @@ def test_create_rejects_parent_type_that_disallows_children(
             )
 
 
-def test_create_rejects_unknown_type(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_rejects_unknown_type(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import InvalidChildType, create
 
     with sync_session_maker() as s:
@@ -213,9 +199,7 @@ def test_create_rejects_unknown_type(
             )
 
 
-def test_create_rejects_duplicate_name_per_parent(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_rejects_duplicate_name_per_parent(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import DuplicateName, create
 
     with sync_session_maker() as s:
@@ -249,7 +233,7 @@ def test_create_rejects_duplicate_name_per_parent(
 # ---------------------------------------------------------------------------
 
 
-def test_update_partial(sync_session_maker, master_key) -> None:  # noqa: ARG001
+def test_update_partial(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import create, update
 
     with sync_session_maker() as s:
@@ -276,9 +260,7 @@ def test_update_partial(sync_session_maker, master_key) -> None:  # noqa: ARG001
     assert row.version == 2
 
 
-def test_update_headers_rotates_iv(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_update_headers_rotates_iv(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import create, update
 
     with sync_session_maker() as s:
@@ -305,9 +287,7 @@ def test_update_headers_rotates_iv(
     assert bytes(row.headers_iv) != original_iv
 
 
-def test_update_missing_id_raises(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_update_missing_id_raises(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import NotFound, update
 
     with sync_session_maker() as s:
@@ -315,9 +295,7 @@ def test_update_missing_id_raises(
             update(s, child_id=uuid4(), name="ghost")
 
 
-def test_enable_disable_round_trip(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_enable_disable_round_trip(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import (
         create,
         disable,
@@ -349,9 +327,7 @@ def test_enable_disable_round_trip(
     assert e.enabled is True
 
 
-def test_enable_disable_idempotent(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_enable_disable_idempotent(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import (
         create,
         disable,
@@ -392,9 +368,7 @@ def test_enable_disable_idempotent(
 # ---------------------------------------------------------------------------
 
 
-def test_list_scoped_to_parent_and_filters(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_list_scoped_to_parent_and_filters(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_child_resources import (
         create,
         disable,
@@ -443,9 +417,7 @@ def test_list_scoped_to_parent_and_filters(
     assert {r.name for r in rows} == {"alpha", "beta"}
 
     with sync_session_maker() as s:
-        rows, total = list_children(
-            s, parent_id=pid, include_disabled=True
-        )
+        rows, total = list_children(s, parent_id=pid, include_disabled=True)
     assert total == 3
 
     with sync_session_maker() as s:
@@ -454,9 +426,7 @@ def test_list_scoped_to_parent_and_filters(
     assert rows[0].name == "alpha"
 
 
-def test_decrypt_headers_kek_mismatch(
-    sync_session_maker, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_decrypt_headers_kek_mismatch(sync_session_maker, monkeypatch: pytest.MonkeyPatch) -> None:
     from gargantua.repo.mcp_child_resources import (
         KekMismatchOnRead,
         create,

@@ -20,7 +20,7 @@ without tripping a lazy-load from a sync context.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Final
 from uuid import UUID
 
@@ -30,7 +30,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from gargantua.db.models import MCPServerType
-
 
 VALID_MODES: Final[frozenset[str]] = frozenset({"stdio", "sse", "streamable_http"})
 
@@ -69,9 +68,7 @@ class NotFound(RepoError):
 
 def _validate_mode(mode: str) -> None:
     if mode not in VALID_MODES:
-        raise InvalidMode(
-            f"mode must be one of {sorted(VALID_MODES)}, got {mode!r}"
-        )
+        raise InvalidMode(f"mode must be one of {sorted(VALID_MODES)}, got {mode!r}")
 
 
 def _build_list_query(
@@ -79,7 +76,7 @@ def _build_list_query(
     mode: str | None,
     search: str | None,
     include_archived: bool,
-):
+) -> tuple[Any, Any]:
     stmt = select(MCPServerType)
     count_stmt = select(func.count()).select_from(MCPServerType)
 
@@ -245,7 +242,7 @@ def archive(session: Session, *, type_id: UUID) -> MCPServerType:
         raise NotFound(str(type_id))
     if row.archived_at is not None:
         return row  # idempotent
-    row.archived_at = datetime.now(tz=timezone.utc)
+    row.archived_at = datetime.now(tz=UTC)
     session.flush()
     session.refresh(row)
     return row
@@ -268,18 +265,12 @@ def unarchive(session: Session, *, type_id: UUID) -> MCPServerType:
 # ---------------------------------------------------------------------------
 
 
-async def aget_by_id(
-    session: AsyncSession, type_id: UUID
-) -> MCPServerType | None:
+async def aget_by_id(session: AsyncSession, type_id: UUID) -> MCPServerType | None:
     return await session.get(MCPServerType, type_id)
 
 
-async def aget_by_slug(
-    session: AsyncSession, slug: str
-) -> MCPServerType | None:
-    result = await session.execute(
-        select(MCPServerType).where(MCPServerType.slug == slug)
-    )
+async def aget_by_slug(session: AsyncSession, slug: str) -> MCPServerType | None:
+    result = await session.execute(select(MCPServerType).where(MCPServerType.slug == slug))
     return result.scalar_one_or_none()
 
 
@@ -345,23 +336,19 @@ async def aupdate(
     return row
 
 
-async def aarchive(
-    session: AsyncSession, *, type_id: UUID
-) -> MCPServerType:
+async def aarchive(session: AsyncSession, *, type_id: UUID) -> MCPServerType:
     row = await session.get(MCPServerType, type_id)
     if row is None:
         raise NotFound(str(type_id))
     if row.archived_at is not None:
         return row
-    row.archived_at = datetime.now(tz=timezone.utc)
+    row.archived_at = datetime.now(tz=UTC)
     await session.flush()
     await session.refresh(row)
     return row
 
 
-async def aunarchive(
-    session: AsyncSession, *, type_id: UUID
-) -> MCPServerType:
+async def aunarchive(session: AsyncSession, *, type_id: UUID) -> MCPServerType:
     row = await session.get(MCPServerType, type_id)
     if row is None:
         raise NotFound(str(type_id))

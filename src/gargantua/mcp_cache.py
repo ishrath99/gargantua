@@ -60,10 +60,9 @@ import contextlib
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
-
 
 logger = logging.getLogger(__name__)
 
@@ -137,9 +136,7 @@ class ServerNotFound(MCPCacheError):
 _CacheKey = tuple[UUID, tuple[UUID, ...]]
 
 
-def _make_key(
-    server_id: UUID, child_resource_ids: tuple[UUID, ...]
-) -> _CacheKey:
+def _make_key(server_id: UUID, child_resource_ids: tuple[UUID, ...]) -> _CacheKey:
     return (server_id, tuple(sorted(child_resource_ids)))
 
 
@@ -161,7 +158,7 @@ class _Entry:
     # Bound to the cache so ``Lease.release`` can operate without
     # holding a back-reference to the whole cache object.  Set by
     # ``MCPCache._install_entry``.
-    _on_release: Callable[["_Entry"], Awaitable[None]] | None = None
+    _on_release: Callable[[_Entry], Awaitable[None]] | None = None
 
 
 @dataclass
@@ -195,9 +192,7 @@ class Lease:
 # ---------------------------------------------------------------------------
 
 
-RowFetcher = Callable[
-    [UUID, tuple[UUID, ...]], Awaitable["BuildPlan | None"]
-]
+RowFetcher = Callable[[UUID, tuple[UUID, ...]], Awaitable["BuildPlan | None"]]
 """Signature: ``(server_id, child_resource_ids) -> BuildPlan | None``.
 
 Returning ``None`` means the server (or the parent of one of the
@@ -214,7 +209,7 @@ Clock = Callable[[], datetime]
 
 
 def _default_clock() -> datetime:
-    return datetime.now(tz=timezone.utc)
+    return datetime.now(tz=UTC)
 
 
 class MCPCache:
@@ -245,7 +240,7 @@ class MCPCache:
         # Per-key locks gate ``acquire`` so two callers can't both
         # trigger a build for the same (server_id, child_set).
         # Created lazily; never deleted (the keyspace is bounded by
-        # ``MCP servers × distinct child sets`` so leak is benign).
+        # ``MCP servers x distinct child sets`` so leak is benign).
         self._key_locks: dict[_CacheKey, asyncio.Lock] = {}
         # Coarse lock around the maps themselves.  Held only for the
         # brief window of looking up / inserting per-key locks and
@@ -254,6 +249,10 @@ class MCPCache:
         self._mutex = asyncio.Lock()
 
         self._reaper_task: asyncio.Task[None] | None = None
+        # Fire-and-forget orphan-close tasks. We keep a strong reference so
+        # they can't be garbage-collected mid-await; the done-callback drops
+        # the entry once the close has finished.
+        self._background_tasks: set[asyncio.Task[None]] = set()
         self._closing = False
 
     # ----------------------------------------------------------- lifecycle
@@ -263,9 +262,7 @@ class MCPCache:
         if self._reaper_task is not None and not self._reaper_task.done():
             return
         self._closing = False
-        self._reaper_task = asyncio.create_task(
-            self._reaper_loop(), name="mcp-cache-reaper"
-        )
+        self._reaper_task = asyncio.create_task(self._reaper_loop(), name="mcp-cache-reaper")
 
     async def stop(self) -> None:
         """Cancel the reaper, close every live handle, mark the cache closed.
@@ -288,6 +285,11 @@ class MCPCache:
             self._orphans.clear()
 
         await self._close_handles(doomed)
+
+        # Drain any in-flight orphan-close tasks scheduled by _orphan_locked
+        # before the caller proceeds with the rest of the shutdown.
+        if self._background_tasks:
+            await asyncio.gather(*self._background_tasks, return_exceptions=True)
 
     # ------------------------------------------------------------- acquire
 
@@ -335,9 +337,7 @@ class MCPCache:
                     # the get and now — possible only via evict).
                     self._orphan_locked(entry)
                 tools = await plan.factory()
-                entry = self._install_entry(
-                    server_id, normalized_children, plan.version, tools
-                )
+                entry = self._install_entry(server_id, normalized_children, plan.version, tools)
             entry.ref_count += 1
             entry.last_used = self._clock()
             return Lease(tools=entry.tools, _entry=entry)
@@ -374,9 +374,7 @@ class MCPCache:
         evicted entries will find their ``release()`` is a no-op.
         """
         async with self._mutex:
-            matching_keys = [
-                key for key in self._entries if key[0] == server_id
-            ]
+            matching_keys = [key for key in self._entries if key[0] == server_id]
             removed = [self._entries.pop(key) for key in matching_keys]
         if not removed:
             return False
@@ -458,14 +456,14 @@ class MCPCache:
         entry.is_orphan = True
         # _on_release stays bound to ``self._on_release`` so the lease
         # callback continues to decrement this entry's ref_count.
-        self._entries.pop(
-            (entry.server_id, entry.child_resource_ids), None
-        )
+        self._entries.pop((entry.server_id, entry.child_resource_ids), None)
         if entry.ref_count == 0:
-            asyncio.create_task(
+            task = asyncio.create_task(
                 self._close_handles([entry]),
                 name=f"mcp-cache-close-orphan-{entry.server_id}",
             )
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
         else:
             self._orphans.append(entry)
 
@@ -506,7 +504,7 @@ class MCPCache:
                 await self._reap_once()
         except asyncio.CancelledError:
             raise
-        except Exception:  # noqa: BLE001 — reaper must not die
+        except Exception:
             logger.exception("mcp-cache reaper crashed; restarting on next start()")
 
     async def _reap_once(self) -> None:
@@ -525,7 +523,7 @@ class MCPCache:
         for entry in entries:
             try:
                 await entry.tools.close()
-            except Exception:  # noqa: BLE001 — drain semantics
+            except Exception:
                 logger.exception(
                     "mcp-cache: error closing handle for server_id=%s version=%d",
                     entry.server_id,
@@ -623,11 +621,10 @@ def make_row_fetcher(
         MCPServerType,
     )
     from gargantua.repo.mcp_child_resources import decrypt_headers
-    from gargantua.repo.mcp_servers import KekMismatch, decrypt_env_vars
+    from gargantua.repo.mcp_servers import decrypt_env_vars
+    from gargantua.secrets import KekMismatch
 
-    async def fetch(
-        server_id: UUID, child_resource_ids: tuple[UUID, ...]
-    ) -> BuildPlan | None:
+    async def fetch(server_id: UUID, child_resource_ids: tuple[UUID, ...]) -> BuildPlan | None:
         async with session_factory() as session:
             row = await session.get(MCPServer, server_id)
             if row is None or row.archived_at is not None:
@@ -650,9 +647,7 @@ def make_row_fetcher(
             # child set so a broken set means a broken entry.
             child_records: list[ChildResourceData] = []
             for child_id in child_resource_ids:
-                child_row = await session.get(
-                    MCPServerChildResource, child_id
-                )
+                child_row = await session.get(MCPServerChildResource, child_id)
                 if (
                     child_row is None
                     or not child_row.enabled
@@ -669,8 +664,7 @@ def make_row_fetcher(
                     child_headers = decrypt_headers(child_row)
                 except KekMismatch:
                     logger.exception(
-                        "mcp-cache: child %s headers can't be decrypted "
-                        "under the active KEK",
+                        "mcp-cache: child %s headers can't be decrypted under the active KEK",
                         child_id,
                     )
                     return None
