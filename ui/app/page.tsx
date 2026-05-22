@@ -68,13 +68,6 @@ function HomeContent() {
           </Link>
         </section>
       ) : null}
-
-      <section className="space-y-2">
-        <h2 className="text-lg font-medium">Coming soon</h2>
-        <ul className="ml-5 list-disc text-sm text-neutral-600 dark:text-neutral-300">
-          <li>PR 18 — multi-stage Docker image with the UI baked in</li>
-        </ul>
-      </section>
     </main>
   );
 }
