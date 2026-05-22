@@ -1,0 +1,53 @@
+# Keep the build context tight — ``docker build`` walks the entire tree
+# before sending it to the daemon, so every megabyte saved here is a
+# faster build (and a smaller cached context).
+
+# VCS / editor
+.git/
+.github/
+.idea/
+.vscode/
+.claude/
+.gemini/
+.windsurf/
+
+# Local-only secrets and env files — these are mounted at runtime,
+# not baked into the image.
+.env
+.env.local
+.env.*.local
+secrets/
+
+# Python build / test artifacts
+**/__pycache__/
+**/*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+dist/
+build/
+*.egg-info/
+
+# Node / Next artifacts.  We copy ``ui/`` into the UI builder stage
+# explicitly, and never use the host-side ``node_modules`` /
+# ``out`` / ``.next`` — they belong to a different OS/arch and would
+# only slow the build context up.
+ui/node_modules/
+ui/.next/
+ui/out/
+ui/coverage/
+ui/test-results/
+ui/playwright-report/
+
+# Compose / docker leftovers
+**/*.swp
+**/*.swo
+**/.DS_Store
+
+# Big docs the image doesn't need
+RUNBOOK.md

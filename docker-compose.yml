@@ -1,0 +1,79 @@
+# gargantua local stack — Postgres + the app, end-to-end.
+#
+# Quickstart:
+#
+#   1. cp .env.example .env  &&  edit MASTER_KEY + BOOTSTRAP_ADMIN_* + OPENROUTER_API_KEY
+#      (or another provider key — OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.)
+#   2. docker compose up --build
+#   3. http://localhost:7777/  — chat UI
+#      http://localhost:7777/admin/  — admin console (admin role only)
+#      http://localhost:7777/health  — liveness
+#
+# JWT keys are generated automatically on first boot under
+# ``./secrets`` (volume-mounted) so subsequent restarts reuse them.
+# Postgres data is persisted in the ``gargantua_pg_data`` named volume.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gargantua
+      POSTGRES_PASSWORD: gargantua
+      POSTGRES_DB: gargantua
+      # Pin a locale so collation-sensitive indexes don't shift
+      # between hosts.  C.UTF-8 is the safe default everywhere.
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+    ports:
+      # Exposed on the host so an out-of-container ``psql`` / Alembic
+      # invocation can poke around.  Compose's internal network
+      # already gives the app a DNS name (``postgres``).
+      - "5432:5432"
+    volumes:
+      - gargantua_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      # ``pg_isready`` returns 0 when the server is accepting
+      # connections — strictly stronger than a TCP check.
+      test: ["CMD-SHELL", "pg_isready -U gargantua -d gargantua"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        # Don't start the app until the DB is accepting traffic —
+        # otherwise the first alembic upgrade in the entrypoint blows up.
+        condition: service_healthy
+    env_file:
+      # Anything in .env is forwarded as a env var (operator-supplied
+      # secrets like MASTER_KEY + the provider API keys Agno needs —
+      # OPENROUTER_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.).
+      - .env
+    environment:
+      # Override the DB URLs so they point at the compose-internal
+      # postgres service, not localhost.  Anything in ``.env`` for
+      # these will be shadowed (which is what we want — operators
+      # rarely remember to flip them when moving from venv to compose).
+      DATABASE_URL: postgresql+psycopg://gargantua:gargantua@postgres:5432/gargantua
+      DATABASE_URL_ASYNC: postgresql+psycopg://gargantua:gargantua@postgres:5432/gargantua
+      # Same-origin for the UI in compose — CORS only matters when
+      # ``pnpm dev`` is talking to a separately-running backend.
+      CORS_ORIGINS: ""
+      RUNTIME_ENV: dev
+    ports:
+      - "7777:7777"
+    volumes:
+      # Persist JWT keys across rebuilds — the entrypoint generates
+      # them lazily if absent, so the first boot creates ``jwt_*.pem``
+      # here and everything thereafter just reads them.
+      - ./secrets:/app/secrets
+
+volumes:
+  gargantua_pg_data:
+    driver: local

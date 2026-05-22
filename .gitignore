@@ -1,0 +1,79 @@
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+downloads/
+*.egg-info/
+*.egg
+.installed.cfg
+
+# Virtual environments
+.venv/
+.venv11/
+venv/
+ENV/
+env/
+
+# Pytest / mypy / ruff caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# ---------------------------------------------------------------------------
+# Secrets / runtime state
+# ---------------------------------------------------------------------------
+# Local env override files (the committed sample lives at .env.example).
+.env
+.env.local
+.env.*.local
+
+# Generated key material (JWT keypair, KEK).
+secrets/
+*.pem
+*.key
+
+# Local database snapshots, sqlite files.
+*.db
+*.sqlite
+*.sqlite3
+
+# ---------------------------------------------------------------------------
+# UI (Next.js)
+# ---------------------------------------------------------------------------
+ui/node_modules/
+ui/.next/
+ui/out/
+ui/.turbo/
+ui/dist/
+ui/coverage/
+ui/*.tsbuildinfo
+ui/.env*.local
+
+# ---------------------------------------------------------------------------
+# IDE / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+.claude/
+.gemini/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---------------------------------------------------------------------------
+# Logs / tmp
+# ---------------------------------------------------------------------------
+*.log
+logs/
+tmp/
