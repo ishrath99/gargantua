@@ -29,7 +29,7 @@
 # Why pnpm + corepack: matches the dev workflow exactly (``pnpm-lock.yaml``
 # is the lockfile), and corepack-installed pnpm avoids the ``npm install -g``
 # tax + version drift.
-FROM node:20-bookworm-slim AS ui-builder
+FROM node:26-bookworm-slim AS ui-builder
 
 # Disable Next's first-build telemetry network call; speeds up the
 # stage in restricted-network builders and is the right default in CI.
