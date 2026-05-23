@@ -62,7 +62,7 @@ RUN pnpm build
 # in one tree.  We don't need build deps in the final image because
 # every wheel we pull (psycopg[binary], argon2-cffi, cryptography) ships
 # pre-built linux/amd64+arm64 wheels.
-FROM python:3.12-slim-bookworm AS py-builder
+FROM python:3.14-slim-bookworm AS py-builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -104,7 +104,7 @@ RUN pip install --upgrade pip wheel && pip install .
 # the ``stdio`` MCPs from the seeded catalog — and most third-party
 # tutorials — would fail at subprocess spawn.  Final image is ~500MB
 # (Python venv with all deps is the dominant cost; Node + uv add ~85MB).
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.14-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
