@@ -143,7 +143,7 @@ describe('apiFetch', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(401, { detail: 'wrong password' }));
 
     await expect(
-      apiFetch('/auth/login', {
+      apiFetch('/api/auth/login', {
         method: 'POST',
         body: { username: 'x', password: 'y' },
         skipAuthRefresh: true,

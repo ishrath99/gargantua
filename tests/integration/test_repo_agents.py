@@ -8,7 +8,7 @@ partial-update / archive semantics.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -21,7 +21,6 @@ from gargantua.db.models import (
     MCPServerChildResource,
     MCPServerType,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -57,7 +56,7 @@ def _seed_server(
 ) -> MCPServer:
     srv = MCPServer(type_id=type_id, name=name, env_tag=env_tag)
     if archived:
-        srv.archived_at = datetime.now(tz=timezone.utc)
+        srv.archived_at = datetime.now(tz=UTC)
     s.add(srv)
     s.flush()
     return srv
@@ -274,8 +273,8 @@ def test_create_rejects_orphan_child_whose_parent_not_in_server_ids(
                 name="x",
                 model="m",
                 instructions="i",
-                mcp_server_ids=[sid_a],         # only A
-                child_resource_ids=[cid_b],     # but child belongs to B
+                mcp_server_ids=[sid_a],  # only A
+                child_resource_ids=[cid_b],  # but child belongs to B
             )
     assert exc.value.orphan_child_resource_ids == [cid_b]
 
@@ -620,9 +619,7 @@ async def test_async_create_and_get(truncate_db: Engine) -> None:
     # psycopg3 supports both sync and async — reuse the same DSN.
     dsn = truncate_db.url.render_as_string(hide_password=False)
     async_engine = create_async_engine(dsn, future=True)
-    async_sm = async_sessionmaker(
-        async_engine, expire_on_commit=False, class_=AsyncSession
-    )
+    async_sm = async_sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
 
     try:
         async with async_sm() as s:
@@ -662,9 +659,7 @@ async def test_async_update_revalidates_refs(truncate_db: Engine) -> None:
 
     dsn = truncate_db.url.render_as_string(hide_password=False)
     async_engine = create_async_engine(dsn, future=True)
-    async_sm = async_sessionmaker(
-        async_engine, expire_on_commit=False, class_=AsyncSession
-    )
+    async_sm = async_sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
 
     try:
         async with async_sm() as s:

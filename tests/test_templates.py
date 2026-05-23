@@ -29,7 +29,6 @@ from gargantua.templates import (
     load_templates,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -278,6 +277,5 @@ def test_shipped_seeds_have_non_empty_instructions() -> None:
     agent would have nothing to do.  Catch it before deployment."""
     for tpl in load_templates():
         assert tpl.instructions.strip(), (
-            f"template {tpl.slug!r} has empty instructions; "
-            "drop it or write a body"
+            f"template {tpl.slug!r} has empty instructions; drop it or write a body"
         )

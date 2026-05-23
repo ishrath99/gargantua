@@ -27,7 +27,7 @@ from gargantua.db.models import AuditLog, MCPServerType
 @pytest.fixture
 def cli_env(
     monkeypatch: pytest.MonkeyPatch,
-    truncate_db: Engine,  # noqa: ARG001 — fresh schema per test
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     """Wire the CLI's sync engine to the test DB; reset on exit."""
@@ -64,9 +64,7 @@ def _canonical_slugs() -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_seed_inserts_all_canonical_types(
-    runner: CliRunner, cli_env, sync_session_maker  # noqa: ARG001
-) -> None:
+def test_seed_inserts_all_canonical_types(runner: CliRunner, cli_env, sync_session_maker) -> None:
     from gargantua.admin import app
 
     result = runner.invoke(app, ["seed-catalog"])
@@ -75,15 +73,12 @@ def test_seed_inserts_all_canonical_types(
 
     expected = _canonical_slugs()
     with sync_session_maker() as s:
-        slugs = {
-            row.slug
-            for row in s.execute(select(MCPServerType)).scalars().all()
-        }
+        slugs = {row.slug for row in s.execute(select(MCPServerType)).scalars().all()}
     assert slugs == expected
 
 
 def test_seed_writes_one_audit_row_per_insert(
-    runner: CliRunner, cli_env, sync_session_maker  # noqa: ARG001
+    runner: CliRunner, cli_env, sync_session_maker
 ) -> None:
     from gargantua.admin import app
 
@@ -91,9 +86,7 @@ def test_seed_writes_one_audit_row_per_insert(
 
     with sync_session_maker() as s:
         creates = (
-            s.execute(
-                select(AuditLog).where(AuditLog.action == "mcp_server_type.create")
-            )
+            s.execute(select(AuditLog).where(AuditLog.action == "mcp_server_type.create"))
             .scalars()
             .all()
         )
@@ -110,7 +103,7 @@ def test_seed_writes_one_audit_row_per_insert(
 
 
 def test_second_seed_run_is_a_noop_without_overwrite(
-    runner: CliRunner, cli_env, sync_session_maker  # noqa: ARG001
+    runner: CliRunner, cli_env, sync_session_maker
 ) -> None:
     from gargantua.admin import app
 
@@ -123,16 +116,11 @@ def test_second_seed_run_is_a_noop_without_overwrite(
     expected = _canonical_slugs()
     with sync_session_maker() as s:
         # No duplicate inserts.
-        slugs = [
-            row.slug
-            for row in s.execute(select(MCPServerType)).scalars().all()
-        ]
+        slugs = [row.slug for row in s.execute(select(MCPServerType)).scalars().all()]
         assert sorted(slugs) == sorted(expected)
         # No second wave of create audits.
         creates = (
-            s.execute(
-                select(AuditLog).where(AuditLog.action == "mcp_server_type.create")
-            )
+            s.execute(select(AuditLog).where(AuditLog.action == "mcp_server_type.create"))
             .scalars()
             .all()
         )
@@ -141,7 +129,7 @@ def test_second_seed_run_is_a_noop_without_overwrite(
 
 def test_seed_run_skips_existing_when_canonical_drift_unchanged(
     runner: CliRunner,
-    cli_env,  # noqa: ARG001
+    cli_env,
     sync_session_maker,
 ) -> None:
     """Operator may have created one of the canonical slugs manually; we
@@ -164,9 +152,7 @@ def test_seed_run_skips_existing_when_canonical_drift_unchanged(
     assert result.exit_code == 0
 
     with sync_session_maker() as s:
-        row = s.execute(
-            select(MCPServerType).where(MCPServerType.slug == target)
-        ).scalar_one()
+        row = s.execute(select(MCPServerType).where(MCPServerType.slug == target)).scalar_one()
     # Operator's custom name preserved — seed-catalog did not overwrite.
     assert row.name == "Operator-customized name"
 
@@ -178,7 +164,7 @@ def test_seed_run_skips_existing_when_canonical_drift_unchanged(
 
 def test_seed_overwrite_updates_drifted_rows(
     runner: CliRunner,
-    cli_env,  # noqa: ARG001
+    cli_env,
     sync_session_maker,
 ) -> None:
     from gargantua.admin import app
@@ -206,11 +192,7 @@ def test_seed_overwrite_updates_drifted_rows(
         assert row.name == target["name"]  # canonical value restored
 
         audits = (
-            s.execute(
-                select(AuditLog).where(
-                    AuditLog.action == "mcp_server_type.update"
-                )
-            )
+            s.execute(select(AuditLog).where(AuditLog.action == "mcp_server_type.update"))
             .scalars()
             .all()
         )
@@ -221,7 +203,7 @@ def test_seed_overwrite_updates_drifted_rows(
 
 def test_seed_overwrite_skips_rows_already_in_canonical_state(
     runner: CliRunner,
-    cli_env,  # noqa: ARG001
+    cli_env,
     sync_session_maker,
 ) -> None:
     """--overwrite must NOT write update audits for rows already in sync."""
@@ -233,11 +215,7 @@ def test_seed_overwrite_skips_rows_already_in_canonical_state(
 
     with sync_session_maker() as s:
         updates = (
-            s.execute(
-                select(AuditLog).where(
-                    AuditLog.action == "mcp_server_type.update"
-                )
-            )
+            s.execute(select(AuditLog).where(AuditLog.action == "mcp_server_type.update"))
             .scalars()
             .all()
         )

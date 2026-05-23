@@ -10,16 +10,16 @@ Create Date: 2026-05-18
 
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 
 revision: str = "0001_initial_schema"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +78,9 @@ def upgrade() -> None:
         sa.Column("default_args", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("config_schema", JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("default_env_vars", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
-        sa.Column("optional_env_vars", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")),
+        sa.Column(
+            "optional_env_vars", JSONB, nullable=False, server_default=sa.text("'{}'::jsonb")
+        ),
         sa.Column("default_swagger_url", sa.Text),
         sa.Column(
             "supports_swagger_child",

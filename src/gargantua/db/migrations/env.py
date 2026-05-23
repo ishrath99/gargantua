@@ -15,9 +15,10 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+import gargantua.db.models  # noqa: F401  — register models on Base.metadata
+
 # Make sure the application package is importable.
-from gargantua.db.base import Base  # noqa: E402
-import gargantua.db.models  # noqa: F401, E402  — register models on Base.metadata
+from gargantua.db.base import Base
 
 config = context.config
 
@@ -71,6 +72,7 @@ def run_migrations_online() -> None:
         # Pre-creating here is idempotent and lets a totally empty DB
         # bootstrap with a single ``alembic upgrade head``.
         from sqlalchemy import text as _text
+
         with connection.begin():
             connection.execute(_text("CREATE SCHEMA IF NOT EXISTS gargantua_app"))
 

@@ -66,8 +66,9 @@ ui/
 ## Auth model
 
 * Tokens come from `POST /auth/login` as `{access_token, refresh_token, expires_in}`.
-* Stored in `localStorage` (XSS trade-off is acknowledged in the
-  plan: `gargantua-ui-ef823e.md` open-items §1).
+* Stored in `localStorage`. The XSS trade-off is documented in
+  `SECURITY.md` at the repo root and mitigated by a strict CSP plus
+  never rendering user-supplied HTML.
 * Every request goes through `apiFetch` in `lib/api/client.ts`,
   which attaches `Authorization: Bearer ...` and, on a 401, tries a
   single `/auth/refresh` + retry before clearing tokens.

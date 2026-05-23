@@ -70,7 +70,7 @@ async function seedSession(page: Page) {
 
 test.describe('admin scope gate', () => {
   test('non-admin role does not see the admin chrome', async ({ page }) => {
-    await page.route(`${API}/auth/me`, (route) =>
+    await page.route(`${API}/api/auth/me`, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -91,7 +91,7 @@ test.describe('admin scope gate', () => {
 
 test.describe('admin shell', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route(`${API}/auth/me`, (route) =>
+    await page.route(`${API}/api/auth/me`, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -99,7 +99,7 @@ test.describe('admin shell', () => {
       }),
     );
     // Stub the dashboard data fetches we don't care about here.
-    await page.route(new RegExp(`${API}/admin/.*`), (route) =>
+    await page.route(new RegExp(`${API}/api/admin/.*`), (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -127,10 +127,10 @@ test.describe('admin shell', () => {
 });
 
 test.describe('catalog CRUD smoke', () => {
-  test('list renders one type and edit page hydrates from /admin/mcp-server-types/{id}', async ({
+  test('list renders one type and edit page hydrates from /api/admin/mcp-server-types/{id}', async ({
     page,
   }) => {
-    await page.route(`${API}/auth/me`, (route) =>
+    await page.route(`${API}/api/auth/me`, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -143,7 +143,7 @@ test.describe('catalog CRUD smoke', () => {
 
     // List → one item.
     await page.route(
-      new RegExp(`${API}/admin/mcp-server-types(\\?.*)?$`),
+      new RegExp(`${API}/api/admin/mcp-server-types(\\?.*)?$`),
       (route) =>
         route.fulfill({
           status: 200,
@@ -158,7 +158,7 @@ test.describe('catalog CRUD smoke', () => {
     );
 
     // Detail.
-    await page.route(`${API}/admin/mcp-server-types/${TYPE.id}`, async (route, request) => {
+    await page.route(`${API}/api/admin/mcp-server-types/${TYPE.id}`, async (route, request) => {
       if (request.method() === 'PATCH') {
         patchPayload = request.postDataJSON() as Record<string, unknown>;
         await route.fulfill({

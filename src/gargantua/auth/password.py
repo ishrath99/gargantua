@@ -14,7 +14,7 @@ m=96 MiB also bumps ``needs_rehash`` for existing stored credentials.
 from __future__ import annotations
 
 from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerifyMismatchError, VerificationError
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 # OWASP 2024 baseline for argon2id.  See:
 #     https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html

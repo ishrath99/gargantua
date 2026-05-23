@@ -30,7 +30,7 @@ Typed errors so the route layer can map them onto HTTP status codes:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Final
 from uuid import UUID
 
@@ -44,7 +44,6 @@ from gargantua.db.models import (
     MCPServer,
     MCPServerChildResource,
 )
-
 
 # ---------------------------------------------------------------------------
 # Exceptions
@@ -84,17 +83,11 @@ class InvalidRefs(RepoError):
         if self.missing_mcp_server_ids:
             parts.append(f"missing mcp_server_ids={self.missing_mcp_server_ids}")
         if self.archived_mcp_server_ids:
-            parts.append(
-                f"archived mcp_server_ids={self.archived_mcp_server_ids}"
-            )
+            parts.append(f"archived mcp_server_ids={self.archived_mcp_server_ids}")
         if self.missing_child_resource_ids:
-            parts.append(
-                f"missing child_resource_ids={self.missing_child_resource_ids}"
-            )
+            parts.append(f"missing child_resource_ids={self.missing_child_resource_ids}")
         if self.disabled_child_resource_ids:
-            parts.append(
-                f"disabled child_resource_ids={self.disabled_child_resource_ids}"
-            )
+            parts.append(f"disabled child_resource_ids={self.disabled_child_resource_ids}")
         if self.orphan_child_resource_ids:
             parts.append(
                 f"child_resource_ids whose parent is not in mcp_server_ids="
@@ -157,35 +150,33 @@ def _validate_refs_sync(
 
     server_rows: dict[UUID, MCPServer] = {}
     if unique_server_ids:
-        for row in session.execute(
+        for server_row in session.execute(
             select(MCPServer).where(MCPServer.id.in_(unique_server_ids))
         ).scalars():
-            server_rows[row.id] = row
+            server_rows[server_row.id] = server_row
 
     for sid in unique_server_ids:
-        row = server_rows.get(sid)
-        if row is None:
+        server = server_rows.get(sid)
+        if server is None:
             missing_mcp_server_ids.append(sid)
-        elif row.archived_at is not None:
+        elif server.archived_at is not None:
             archived_mcp_server_ids.append(sid)
 
     child_rows: dict[UUID, MCPServerChildResource] = {}
     if unique_child_ids:
-        for row in session.execute(
-            select(MCPServerChildResource).where(
-                MCPServerChildResource.id.in_(unique_child_ids)
-            )
+        for child_row in session.execute(
+            select(MCPServerChildResource).where(MCPServerChildResource.id.in_(unique_child_ids))
         ).scalars():
-            child_rows[row.id] = row
+            child_rows[child_row.id] = child_row
 
     for cid in unique_child_ids:
-        row = child_rows.get(cid)
-        if row is None:
+        child = child_rows.get(cid)
+        if child is None:
             missing_child_resource_ids.append(cid)
             continue
-        if not row.enabled:
+        if not child.enabled:
             disabled_child_resource_ids.append(cid)
-        if row.parent_mcp_server_id not in unique_server_ids:
+        if child.parent_mcp_server_id not in unique_server_ids:
             orphan_child_resource_ids.append(cid)
 
     if any(
@@ -224,37 +215,33 @@ async def _validate_refs_async(
 
     server_rows: dict[UUID, MCPServer] = {}
     if unique_server_ids:
-        result = await session.execute(
-            select(MCPServer).where(MCPServer.id.in_(unique_server_ids))
-        )
-        for row in result.scalars():
-            server_rows[row.id] = row
+        result = await session.execute(select(MCPServer).where(MCPServer.id.in_(unique_server_ids)))
+        for server_row in result.scalars():
+            server_rows[server_row.id] = server_row
 
     for sid in unique_server_ids:
-        row = server_rows.get(sid)
-        if row is None:
+        server = server_rows.get(sid)
+        if server is None:
             missing_mcp_server_ids.append(sid)
-        elif row.archived_at is not None:
+        elif server.archived_at is not None:
             archived_mcp_server_ids.append(sid)
 
     child_rows: dict[UUID, MCPServerChildResource] = {}
     if unique_child_ids:
-        result = await session.execute(
-            select(MCPServerChildResource).where(
-                MCPServerChildResource.id.in_(unique_child_ids)
-            )
+        child_result = await session.execute(
+            select(MCPServerChildResource).where(MCPServerChildResource.id.in_(unique_child_ids))
         )
-        for row in result.scalars():
-            child_rows[row.id] = row
+        for child_row in child_result.scalars():
+            child_rows[child_row.id] = child_row
 
     for cid in unique_child_ids:
-        row = child_rows.get(cid)
-        if row is None:
+        child = child_rows.get(cid)
+        if child is None:
             missing_child_resource_ids.append(cid)
             continue
-        if not row.enabled:
+        if not child.enabled:
             disabled_child_resource_ids.append(cid)
-        if row.parent_mcp_server_id not in unique_server_ids:
+        if child.parent_mcp_server_id not in unique_server_ids:
             orphan_child_resource_ids.append(cid)
 
     if any(
@@ -277,7 +264,7 @@ async def _validate_refs_async(
 
 def _build_list_query(
     *, search: str | None, include_archived: bool, model_filter: str | None
-):
+) -> tuple[Any, Any]:
     stmt = select(Agent)
     count_stmt = select(func.count()).select_from(Agent)
 
@@ -316,9 +303,7 @@ def get_by_id(session: Session, agent_id: UUID) -> Agent | None:
 
 
 def get_by_name(session: Session, name: str) -> Agent | None:
-    return session.execute(
-        select(Agent).where(Agent.name == name)
-    ).scalar_one_or_none()
+    return session.execute(select(Agent).where(Agent.name == name)).scalar_one_or_none()
 
 
 def list_agents(
@@ -392,9 +377,7 @@ def create(
     return row
 
 
-def update(
-    session: Session, *, agent_id: UUID, **kwargs: Any
-) -> Agent:
+def update(session: Session, *, agent_id: UUID, **kwargs: Any) -> Agent:
     """Partial update.  Re-validates references whenever
     ``mcp_server_ids`` or ``child_resource_ids`` is in the payload."""
     row = session.get(Agent, agent_id)
@@ -414,14 +397,9 @@ def update(
     # state.  This means: pull the new value if present, otherwise the
     # existing one.  Catches "I'm clearing mcp_server_ids but leaving a
     # child_resource_id whose parent was only in the old set".
-    if (
-        "mcp_server_ids" in changes
-        or "child_resource_ids" in changes
-    ):
+    if "mcp_server_ids" in changes or "child_resource_ids" in changes:
         next_server_ids = changes.get("mcp_server_ids", row.mcp_server_ids)
-        next_child_ids = changes.get(
-            "child_resource_ids", row.child_resource_ids
-        )
+        next_child_ids = changes.get("child_resource_ids", row.child_resource_ids)
         _validate_refs_sync(
             session,
             mcp_server_ids=next_server_ids,
@@ -452,7 +430,7 @@ def archive(session: Session, *, agent_id: UUID) -> Agent:
         raise NotFound(str(agent_id))
     if row.archived_at is not None:
         return row
-    row.archived_at = datetime.now(tz=timezone.utc)
+    row.archived_at = datetime.now(tz=UTC)
     session.flush()
     session.refresh(row)
     return row
@@ -475,18 +453,12 @@ def unarchive(session: Session, *, agent_id: UUID) -> Agent:
 # ---------------------------------------------------------------------------
 
 
-async def aget_by_id(
-    session: AsyncSession, agent_id: UUID
-) -> Agent | None:
+async def aget_by_id(session: AsyncSession, agent_id: UUID) -> Agent | None:
     return await session.get(Agent, agent_id)
 
 
-async def aget_by_name(
-    session: AsyncSession, name: str
-) -> Agent | None:
-    result = await session.execute(
-        select(Agent).where(Agent.name == name)
-    )
+async def aget_by_name(session: AsyncSession, name: str) -> Agent | None:
+    result = await session.execute(select(Agent).where(Agent.name == name))
     return result.scalar_one_or_none()
 
 
@@ -556,9 +528,7 @@ async def acreate(
     return row
 
 
-async def aupdate(
-    session: AsyncSession, *, agent_id: UUID, **kwargs: Any
-) -> Agent:
+async def aupdate(session: AsyncSession, *, agent_id: UUID, **kwargs: Any) -> Agent:
     row = await session.get(Agent, agent_id)
     if row is None:
         raise NotFound(str(agent_id))
@@ -572,14 +542,9 @@ async def aupdate(
     if not changes:
         return row
 
-    if (
-        "mcp_server_ids" in changes
-        or "child_resource_ids" in changes
-    ):
+    if "mcp_server_ids" in changes or "child_resource_ids" in changes:
         next_server_ids = changes.get("mcp_server_ids", row.mcp_server_ids)
-        next_child_ids = changes.get(
-            "child_resource_ids", row.child_resource_ids
-        )
+        next_child_ids = changes.get("child_resource_ids", row.child_resource_ids)
         await _validate_refs_async(
             session,
             mcp_server_ids=next_server_ids,
@@ -602,23 +567,19 @@ async def aupdate(
     return row
 
 
-async def aarchive(
-    session: AsyncSession, *, agent_id: UUID
-) -> Agent:
+async def aarchive(session: AsyncSession, *, agent_id: UUID) -> Agent:
     row = await session.get(Agent, agent_id)
     if row is None:
         raise NotFound(str(agent_id))
     if row.archived_at is not None:
         return row
-    row.archived_at = datetime.now(tz=timezone.utc)
+    row.archived_at = datetime.now(tz=UTC)
     await session.flush()
     await session.refresh(row)
     return row
 
 
-async def aunarchive(
-    session: AsyncSession, *, agent_id: UUID
-) -> Agent:
+async def aunarchive(session: AsyncSession, *, agent_id: UUID) -> Agent:
     row = await session.get(Agent, agent_id)
     if row is None:
         raise NotFound(str(agent_id))
@@ -640,9 +601,9 @@ __all__ = [
     "aget_by_id",
     "aget_by_name",
     "alist_agents",
+    "archive",
     "aunarchive",
     "aupdate",
-    "archive",
     "create",
     "get_by_id",
     "get_by_name",

@@ -55,14 +55,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from agno.tools.mcp import MCPTools
 from mcp.client.stdio import StdioServerParameters
 
 from gargantua.db.models import MCPServer, MCPServerType
 from gargantua.mcp_cache import ChildResourceData
-
 
 #: Environment variable / HTTP header name used to convey child resources
 #: (e.g. swagger docs) to the MCP server at startup.  See module
@@ -206,9 +206,7 @@ async def build_mcp_tools(
 
     mode = type_row.mode
     children = list(child_resources or [])
-    children_payload = (
-        _serialize_child_resources(children) if children else None
-    )
+    children_payload = _serialize_child_resources(children) if children else None
 
     if mode == "stdio":
         command = server.command or type_row.default_command
@@ -267,15 +265,13 @@ async def build_mcp_tools(
             # is fine because the cache key includes the child resource
             # set, so different child sets get different MCPTools
             # instances (each with its own provider).
-            def _make_header_provider(payload: str):
+            def _make_header_provider(payload: str) -> Callable[[], dict[str, Any]]:
                 def _provider() -> dict[str, Any]:
                     return {CHILD_RESOURCES_HEADER: payload}
 
                 return _provider
 
-            mcp_kwargs["header_provider"] = _make_header_provider(
-                children_payload
-            )
+            mcp_kwargs["header_provider"] = _make_header_provider(children_payload)
 
         tools = MCPTools(**mcp_kwargs)
 

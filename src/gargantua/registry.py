@@ -38,8 +38,8 @@ from typing import Any, Final
 from agno.agent import Agent as AgnoAgent
 from agno.team import Team as AgnoTeam
 
-from gargantua.db.models import Agent as AgentRow, Team as TeamRow
-
+from gargantua.db.models import Agent as AgentRow
+from gargantua.db.models import Team as TeamRow
 
 # Keys we forward verbatim from ``agent_config`` into the Agno Agent
 # constructor.  Anything outside this allow-list is silently dropped

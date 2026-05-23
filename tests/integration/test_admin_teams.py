@@ -24,8 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from gargantua.db.models import Agent, AuditLog, Team, User
-
+from gargantua.db.models import Agent, AuditLog, User
 
 # ---------------------------------------------------------------------------
 # Fixtures (mirror test_admin_agents.py)
@@ -68,7 +67,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -84,13 +83,13 @@ def configured_env(
 
 
 @pytest.fixture
-def app(configured_env) -> FastAPI:  # noqa: ARG001
+def app(configured_env) -> FastAPI:
     from gargantua.api.admin import router as admin_router
     from gargantua.api.auth import router as auth_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(admin_router, prefix="/admin")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(admin_router, prefix="/api/admin")
     return a
 
 
@@ -119,9 +118,7 @@ def seeded_admin(sync_session_maker) -> tuple[UUID, str]:
         s.add(u)
         s.commit()
         s.refresh(u)
-        return u.id, mint_access_token(
-            subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        return u.id, mint_access_token(subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
 
 
 @pytest.fixture
@@ -164,7 +161,7 @@ def _minimal_create_body(name: str = "ops", mode: str = "route") -> dict:
 
 
 def test_list_teams_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/admin/teams")
+    r = client.get("/api/admin/teams")
     assert r.status_code == 401
 
 
@@ -172,7 +169,7 @@ def test_list_teams_with_user_token_returns_403(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.get("/admin/teams", headers=_auth(token))
+    r = client.get("/api/admin/teams", headers=_auth(token))
     assert r.status_code == 403
 
 
@@ -180,7 +177,7 @@ def test_list_teams_with_admin_token_returns_200(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/teams", headers=_auth(token))
+    r = client.get("/api/admin/teams", headers=_auth(token))
     assert r.status_code == 200
     assert r.json() == {"items": [], "total": 0, "page": 1, "page_size": 50}
 
@@ -197,7 +194,7 @@ def test_create_team_201_and_audit_logged(
 ) -> None:
     admin_id, token = seeded_admin
     r = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body(),
         headers=_auth(token),
     )
@@ -230,7 +227,7 @@ def test_create_team_with_members(
         str(seeded_agents["researcher"]),
         str(seeded_agents["planner"]),
     ]
-    r = client.post("/admin/teams", json=body, headers=_auth(token))
+    r = client.post("/api/admin/teams", json=body, headers=_auth(token))
     assert r.status_code == 201, r.text
     created = r.json()
     assert created["member_agent_ids"] == body["member_agent_ids"]
@@ -241,9 +238,9 @@ def test_create_team_rejects_duplicate_name(
 ) -> None:
     _, token = seeded_admin
     body = _minimal_create_body()
-    r1 = client.post("/admin/teams", json=body, headers=_auth(token))
+    r1 = client.post("/api/admin/teams", json=body, headers=_auth(token))
     assert r1.status_code == 201
-    r2 = client.post("/admin/teams", json=body, headers=_auth(token))
+    r2 = client.post("/api/admin/teams", json=body, headers=_auth(token))
     assert r2.status_code == 409
 
 
@@ -252,7 +249,7 @@ def test_create_team_rejects_unknown_mode(
 ) -> None:
     _, token = seeded_admin
     r = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json={"name": "ops", "mode": "freeform"},
         headers=_auth(token),
     )
@@ -265,7 +262,7 @@ def test_create_team_rejects_missing_member(
     _, token = seeded_admin
     body = _minimal_create_body()
     body["member_agent_ids"] = [str(uuid4())]
-    r = client.post("/admin/teams", json=body, headers=_auth(token))
+    r = client.post("/api/admin/teams", json=body, headers=_auth(token))
     assert r.status_code == 422
     detail = r.json()["detail"]
     assert detail["missing_agent_ids"] == body["member_agent_ids"]
@@ -283,20 +280,16 @@ def _seed_three_teams(client: TestClient, token: str) -> None:
         ("betatron", "route"),
     ]:
         client.post(
-            "/admin/teams",
+            "/api/admin/teams",
             json={"name": name, "mode": mode},
             headers=_auth(token),
         )
 
 
-def test_list_teams_paginates(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_teams_paginates(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     _seed_three_teams(client, token)
-    r = client.get(
-        "/admin/teams?page=1&page_size=2", headers=_auth(token)
-    )
+    r = client.get("/api/admin/teams?page=1&page_size=2", headers=_auth(token))
     body = r.json()
     assert body["total"] == 3
     assert len(body["items"]) == 2
@@ -307,18 +300,16 @@ def test_list_teams_search_matches_substring(
 ) -> None:
     _, token = seeded_admin
     _seed_three_teams(client, token)
-    r = client.get("/admin/teams?search=beta", headers=_auth(token))
+    r = client.get("/api/admin/teams?search=beta", headers=_auth(token))
     body = r.json()
     assert body["total"] == 2
     assert {item["name"] for item in body["items"]} == {"beta", "betatron"}
 
 
-def test_list_teams_mode_filter(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_list_teams_mode_filter(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     _seed_three_teams(client, token)
-    r = client.get("/admin/teams?mode=route", headers=_auth(token))
+    r = client.get("/api/admin/teams?mode=route", headers=_auth(token))
     body = r.json()
     assert body["total"] == 2
     assert {item["name"] for item in body["items"]} == {"alpha", "betatron"}
@@ -328,30 +319,26 @@ def test_list_teams_unknown_mode_filter_422(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/teams?mode=freeform", headers=_auth(token))
+    r = client.get("/api/admin/teams?mode=freeform", headers=_auth(token))
     assert r.status_code == 422
 
 
-def test_get_team_by_id(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_team_by_id(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
-    r = client.get(f"/admin/teams/{created['id']}", headers=_auth(token))
+    r = client.get(f"/api/admin/teams/{created['id']}", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["name"] == "ops"
 
 
-def test_get_team_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_team_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.get(f"/admin/teams/{uuid4()}", headers=_auth(token))
+    r = client.get(f"/api/admin/teams/{uuid4()}", headers=_auth(token))
     assert r.status_code == 404
 
 
@@ -367,13 +354,13 @@ def test_update_team_partial(
 ) -> None:
     admin_id, token = seeded_admin
     created = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/teams/{created['id']}",
+        f"/api/admin/teams/{created['id']}",
         json={"description": "service desk ops"},
         headers=_auth(token),
     )
@@ -399,31 +386,27 @@ def test_update_team_no_op_no_audit(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/teams/{created['id']}",
+        f"/api/admin/teams/{created['id']}",
         json={},
         headers=_auth(token),
     )
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "team.update")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "team.update")).all()
     assert rows == []
 
 
-def test_update_team_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_update_team_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     r = client.patch(
-        f"/admin/teams/{uuid4()}",
+        f"/api/admin/teams/{uuid4()}",
         json={"name": "ghost"},
         headers=_auth(token),
     )
@@ -435,18 +418,18 @@ def test_update_team_rejects_duplicate_name(
 ) -> None:
     _, token = seeded_admin
     client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body("alpha"),
         headers=_auth(token),
     )
     b = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body("beta"),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/teams/{b['id']}",
+        f"/api/admin/teams/{b['id']}",
         json={"name": "alpha"},
         headers=_auth(token),
     )
@@ -458,13 +441,13 @@ def test_update_team_rejects_unknown_mode(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/teams/{created['id']}",
+        f"/api/admin/teams/{created['id']}",
         json={"mode": "freeform"},
         headers=_auth(token),
     )
@@ -478,7 +461,7 @@ def test_update_team_rejects_invalid_members(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json={
             **_minimal_create_body(),
             "member_agent_ids": [str(seeded_agents["researcher"])],
@@ -487,7 +470,7 @@ def test_update_team_rejects_invalid_members(
     ).json()
 
     r = client.patch(
-        f"/admin/teams/{created['id']}",
+        f"/api/admin/teams/{created['id']}",
         json={"member_agent_ids": [str(uuid4())]},
         headers=_auth(token),
     )
@@ -506,23 +489,19 @@ def test_archive_team_hides_from_default_list(
 ) -> None:
     admin_id, token = seeded_admin
     created = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
-    r = client.post(
-        f"/admin/teams/{created['id']}/archive", headers=_auth(token)
-    )
+    r = client.post(f"/api/admin/teams/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["archived_at"] is not None
 
-    body = client.get("/admin/teams", headers=_auth(token)).json()
+    body = client.get("/api/admin/teams", headers=_auth(token)).json()
     assert body["total"] == 0
 
-    body = client.get(
-        "/admin/teams?include_archived=true", headers=_auth(token)
-    ).json()
+    body = client.get("/api/admin/teams?include_archived=true", headers=_auth(token)).json()
     assert body["total"] == 1
 
     with sync_session_maker() as s:
@@ -539,17 +518,13 @@ def test_archive_then_unarchive_restores(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
-    client.post(
-        f"/admin/teams/{created['id']}/archive", headers=_auth(token)
-    )
-    r = client.post(
-        f"/admin/teams/{created['id']}/unarchive", headers=_auth(token)
-    )
+    client.post(f"/api/admin/teams/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/api/admin/teams/{created['id']}/unarchive", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["archived_at"] is None
 
@@ -561,31 +536,21 @@ def test_archive_already_archived_is_noop(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/teams",
+        "/api/admin/teams",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
-    client.post(
-        f"/admin/teams/{created['id']}/archive", headers=_auth(token)
-    )
-    r = client.post(
-        f"/admin/teams/{created['id']}/archive", headers=_auth(token)
-    )
+    client.post(f"/api/admin/teams/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/api/admin/teams/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "team.archive")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "team.archive")).all()
     assert len(rows) == 1
 
 
-def test_archive_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_archive_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.post(
-        f"/admin/teams/{uuid4()}/archive", headers=_auth(token)
-    )
+    r = client.post(f"/api/admin/teams/{uuid4()}/archive", headers=_auth(token))
     assert r.status_code == 404

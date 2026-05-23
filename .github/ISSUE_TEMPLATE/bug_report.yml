@@ -1,0 +1,71 @@
+name: Bug report
+description: Something is wrong with gargantua.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Before you submit, please:
+
+        - Confirm you're on the latest tag or `main`.
+        - Search existing issues — your bug may already be filed.
+        - **Redact secrets** from logs (`MASTER_KEY`, JWT tokens, provider API keys).
+
+  - type: input
+    id: version
+    attributes:
+      label: Gargantua version
+      description: Tag (e.g. `v0.1.0`), commit SHA, or `main@<date>`.
+      placeholder: v0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How are you running it?
+      options:
+        - docker compose (bundled)
+        - venv + host Postgres
+        - Kubernetes / other
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, what did you see?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal repro. `curl` commands are great.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: |
+        Set `APP_LOG_LEVEL=debug` and paste the failing request's logs.
+        For agent run failures, also set `AGNO_DEBUG=true` (see RUNBOOK.md
+        §"Debugging an agent run").
+
+        **Redact `MASTER_KEY`, JWT tokens, and any provider API keys.**
+      render: shell
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python version, Postgres version, anything unusual.
+      placeholder: |
+        OS: Ubuntu 22.04
+        Python: 3.12.3
+        Postgres: 16.2

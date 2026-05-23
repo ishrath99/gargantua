@@ -55,7 +55,6 @@ from typing import Any
 
 import yaml
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -130,9 +129,7 @@ def _parse_template_file(path: Path) -> AgentTemplate:
     # (common with editors that auto-insert one).
     stripped = text.lstrip()
     if not stripped.startswith(_FRONT_MATTER_DELIM):
-        raise TemplateInvalid(
-            f"{path.name}: missing front-matter (must start with '---')"
-        )
+        raise TemplateInvalid(f"{path.name}: missing front-matter (must start with '---')")
 
     # Split on the first two delimiters: everything between them is the
     # YAML front-matter; everything after the second is the body.
@@ -140,40 +137,32 @@ def _parse_template_file(path: Path) -> AgentTemplate:
     #   ['', '<front-matter>', '<body>']
     parts = stripped.split(_FRONT_MATTER_DELIM, 2)
     if len(parts) < 3:
-        raise TemplateInvalid(
-            f"{path.name}: front-matter is not closed (need a second '---')"
-        )
+        raise TemplateInvalid(f"{path.name}: front-matter is not closed (need a second '---')")
 
     _leading, raw_front, body = parts
 
     try:
         front = yaml.safe_load(raw_front)
     except yaml.YAMLError as exc:
-        raise TemplateInvalid(
-            f"{path.name}: YAML parse error: {exc}"
-        ) from exc
+        raise TemplateInvalid(f"{path.name}: YAML parse error: {exc}") from exc
 
     if front is None:
         front = {}
     if not isinstance(front, dict):
         raise TemplateInvalid(
-            f"{path.name}: front-matter must be a YAML mapping, "
-            f"got {type(front).__name__}"
+            f"{path.name}: front-matter must be a YAML mapping, got {type(front).__name__}"
         )
 
     missing = [k for k in _REQUIRED_FIELDS if k not in front]
     if missing:
         raise TemplateInvalid(
-            f"{path.name}: missing required front-matter field(s): "
-            f"{', '.join(missing)}"
+            f"{path.name}: missing required front-matter field(s): {', '.join(missing)}"
         )
 
     return AgentTemplate(
         slug=str(front["slug"]),
         name=str(front["name"]),
-        description=(
-            str(front["description"]) if front.get("description") is not None else None
-        ),
+        description=(str(front["description"]) if front.get("description") is not None else None),
         model=str(front["model"]),
         suggested_mcp_server_type_slugs=[
             str(s) for s in (front.get("suggested_mcp_server_type_slugs") or [])
@@ -216,9 +205,7 @@ def load_templates(templates_dir: Path | None = None) -> list[AgentTemplate]:
     return out
 
 
-def load_template_by_slug(
-    slug: str, templates_dir: Path | None = None
-) -> AgentTemplate:
+def load_template_by_slug(slug: str, templates_dir: Path | None = None) -> AgentTemplate:
     """Return the template with ``slug``, or raise :class:`TemplateNotFound`.
 
     Re-reads from disk on every call.  The catalog is tiny enough that

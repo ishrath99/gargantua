@@ -88,7 +88,6 @@ from gargantua.repo import mcp_child_resources as child_resources_repo
 from gargantua.repo import teams as teams_repo
 from gargantua.settings import get_settings
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -107,11 +106,9 @@ def _get_cache(request: Request) -> MCPCache:
     means a misconfigured environment surfaces with a clear status
     code at the route layer instead of a 500 with no breadcrumb.
     """
-    cache = getattr(request.app.state, "mcp_cache", None)
+    cache: MCPCache | None = getattr(request.app.state, "mcp_cache", None)
     if cache is None:
-        raise HTTPException(
-            status_code=503, detail="MCP cache is not initialized"
-        )
+        raise HTTPException(status_code=503, detail="MCP cache is not initialized")
     return cache
 
 
@@ -159,9 +156,7 @@ async def _resolve_lease_keys_for_agent(
     agent's ``mcp_server_ids`` are also dropped: the repo's reference
     validation catches that at create-time, but defensive at runtime.
     """
-    parent_map = await child_resources_repo.aget_parent_map(
-        session, child_resource_ids
-    )
+    parent_map = await child_resources_repo.aget_parent_map(session, child_resource_ids)
     declared = set(mcp_server_ids)
     by_parent: dict[UUID, list[UUID]] = {}
     for child_id, parent_id in parent_map.items():
@@ -234,10 +229,8 @@ async def _release_all(leases: dict[_ServerLeaseKey, Lease]) -> None:
     for key, lease in leases.items():
         try:
             await lease.release()
-        except Exception:  # noqa: BLE001 — best-effort drain
-            logger.exception(
-                "mcp-cache: lease.release for key=%s failed", key
-            )
+        except Exception:
+            logger.exception("mcp-cache: lease.release for key=%s failed", key)
 
 
 # ---------------------------------------------------------------------------
@@ -262,9 +255,7 @@ async def run_agent(
     # 1. Lookup.
     row = await agents_repo.aget_by_id(session, agent_id)
     if row is None or row.archived_at is not None:
-        raise HTTPException(
-            status_code=404, detail=f"Agent {agent_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
 
     cache = _get_cache(request)
     agno_db = _get_agno_db(request)
@@ -285,9 +276,7 @@ async def run_agent(
             detail=f"MCP server {exc} is not available",
         ) from exc
     except Exception as exc:
-        logger.exception(
-            "mcp-cache: lease acquisition failed for agent %s", agent_id
-        )
+        logger.exception("mcp-cache: lease acquisition failed for agent %s", agent_id)
         raise HTTPException(
             status_code=503,
             detail="Failed to acquire MCP tools for this agent",
@@ -324,7 +313,7 @@ async def _nonstreaming_response(
     agent: Any,
     body: AgentRunRequest,
     user_id: str,
-    leases: dict[UUID, Lease],
+    leases: dict[_ServerLeaseKey, Lease],
 ) -> Any:
     """Run synchronously and return the run output dict.
 
@@ -352,7 +341,7 @@ async def _stream_response(
     agent: Any,
     body: AgentRunRequest,
     user_id: str,
-    leases: dict[UUID, Lease],
+    leases: dict[_ServerLeaseKey, Lease],
 ) -> StreamingResponse:
     """Run with ``stream=True`` and return an SSE :class:`StreamingResponse`.
 
@@ -388,7 +377,7 @@ async def _stream_response(
 
 async def _sse_event_stream(
     events: AsyncIterator[Any],
-    leases: dict[UUID, Lease],
+    leases: dict[_ServerLeaseKey, Lease],
 ) -> AsyncIterator[str]:
     """Format Agno's run-event stream as Server-Sent Events.
 
@@ -404,11 +393,9 @@ async def _sse_event_stream(
     try:
         async for event in events:
             try:
-                payload = (
-                    event.to_dict() if hasattr(event, "to_dict") else event
-                )
+                payload = event.to_dict() if hasattr(event, "to_dict") else event
                 yield f"data: {json.dumps(payload, default=str)}\n\n"
-            except Exception:  # noqa: BLE001 — never break the stream on one bad event
+            except Exception:
                 logger.exception("mcp-runs: event serialization failed")
                 continue
         yield "data: [DONE]\n\n"
@@ -421,9 +408,7 @@ async def _sse_event_stream(
 # ---------------------------------------------------------------------------
 
 
-async def _resolve_team_members(
-    session: AsyncSession, member_ids: list[UUID]
-) -> list[Agent]:
+async def _resolve_team_members(session: AsyncSession, member_ids: list[UUID]) -> list[Agent]:
     """Load every member agent referenced by a team.
 
     Raises :class:`HTTPException` 422 with a structured detail if any
@@ -442,8 +427,7 @@ async def _resolve_team_members(
             detail={
                 "reason": "team_has_no_members",
                 "message": (
-                    "Team has no members.  Add at least one agent via "
-                    "/admin/teams before running."
+                    "Team has no members.  Add at least one agent via /admin/teams before running."
                 ),
             },
         )
@@ -453,10 +437,7 @@ async def _resolve_team_members(
     found = {row.id: row for row in rows}
 
     missing = [sid for sid in member_ids if sid not in found]
-    archived = [
-        sid for sid in member_ids
-        if sid in found and found[sid].archived_at is not None
-    ]
+    archived = [sid for sid in member_ids if sid in found and found[sid].archived_at is not None]
 
     if missing or archived:
         raise HTTPException(
@@ -533,16 +514,8 @@ def _build_team_members(
     """
     members: list[Any] = []
     for row, key_map in zip(member_rows, member_key_maps, strict=True):
-        member_tools = [
-            leases[key_map[sid]].tools
-            for sid in row.mcp_server_ids
-            if sid in key_map
-        ]
-        members.append(
-            build_agno_agent(
-                row, tools=member_tools, db=agno_db, debug=debug
-            )
-        )
+        member_tools = [leases[key_map[sid]].tools for sid in row.mcp_server_ids if sid in key_map]
+        members.append(build_agno_agent(row, tools=member_tools, db=agno_db, debug=debug))
     return members
 
 
@@ -569,23 +542,17 @@ async def run_team(
     # 1. Team lookup.
     team_row = await teams_repo.aget_by_id(session, team_id)
     if team_row is None or team_row.archived_at is not None:
-        raise HTTPException(
-            status_code=404, detail=f"Team {team_id} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Team {team_id} not found")
 
     # 1b. Resolve members (422 on any structural problem).
-    member_rows = await _resolve_team_members(
-        session, list(team_row.member_agent_ids)
-    )
+    member_rows = await _resolve_team_members(session, list(team_row.member_agent_ids))
 
     cache = _get_cache(request)
     agno_db = _get_agno_db(request)
 
     # 2. Resolve lease keys across members (deduplicated by
     #    (server_id, child_set)), then acquire them.
-    unique_keys, member_key_maps = await _resolve_team_lease_keys(
-        session, member_rows
-    )
+    unique_keys, member_key_maps = await _resolve_team_lease_keys(session, member_rows)
     try:
         leases = await _acquire_all(cache, unique_keys)
     except ServerNotFound as exc:
@@ -594,9 +561,7 @@ async def run_team(
             detail=f"MCP server {exc} is not available",
         ) from exc
     except Exception as exc:
-        logger.exception(
-            "mcp-cache: lease acquisition failed for team %s", team_id
-        )
+        logger.exception("mcp-cache: lease acquisition failed for team %s", team_id)
         raise HTTPException(
             status_code=503,
             detail="Failed to acquire MCP tools for this team",
@@ -608,12 +573,8 @@ async def run_team(
     #    log at the same verbosity.
     debug = get_settings().agno_debug
     try:
-        members = _build_team_members(
-            member_rows, member_key_maps, leases, agno_db, debug=debug
-        )
-        team = build_agno_team(
-            team_row, members=members, db=agno_db, debug=debug
-        )
+        members = _build_team_members(member_rows, member_key_maps, leases, agno_db, debug=debug)
+        team = build_agno_team(team_row, members=members, db=agno_db, debug=debug)
     except Exception:
         await _release_all(leases)
         raise

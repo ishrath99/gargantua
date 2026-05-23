@@ -40,14 +40,12 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
-from uuid import UUID
 
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
-
 
 # ---------------------------------------------------------------------------
 # Narrow fakes — only the two we patch
@@ -97,7 +95,7 @@ class _FakeAgent:
     def set_result(self, result: Any) -> None:
         self._result = result
 
-    def arun(self, input: Any, **kwargs: Any) -> Any:  # noqa: A002
+    def arun(self, input: Any, **kwargs: Any) -> Any:
         # Real ``agno.agent.Agent.arun`` is a sync method that returns
         # either an AsyncIterator (stream=True) or a coroutine
         # resolving to a RunOutput (stream=False).
@@ -155,7 +153,7 @@ BOOTSTRAP_ADMIN_PASS = "rootpw!1"
 def configured(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001 — ensures empty tables for bootstrap
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     """Configure every env var ``create_app`` reads, as production would.
@@ -182,9 +180,7 @@ def configured(
 
     # AES-256 KEK; pinned deterministic value so kek_id fingerprints are
     # repeatable across runs.
-    monkeypatch.setenv(
-        "MASTER_KEY", base64.b64encode(b"\x42" * 32).decode("ascii")
-    )
+    monkeypatch.setenv("MASTER_KEY", base64.b64encode(b"\x42" * 32).decode("ascii"))
 
     # Both must be set for bootstrap_admin to fire.
     monkeypatch.setenv("BOOTSTRAP_ADMIN_USERNAME", BOOTSTRAP_ADMIN_USER)
@@ -211,16 +207,14 @@ def _auth(token: str) -> dict[str, str]:
 def _login_admin(client: TestClient) -> str:
     """Exchange bootstrap-admin credentials for an access token."""
     r = client.post(
-        "/auth/login",
+        "/api/auth/login",
         json={"username": BOOTSTRAP_ADMIN_USER, "password": BOOTSTRAP_ADMIN_PASS},
     )
     assert r.status_code == 200, r.text
     return r.json()["access_token"]
 
 
-def _create_type_server_agent(
-    client: TestClient, token: str
-) -> tuple[str, str, str]:
+def _create_type_server_agent(client: TestClient, token: str) -> tuple[str, str, str]:
     """Create a stdio MCP server type + instance + agent in one shot.
 
     Returns ``(type_id, server_id, agent_id)`` for use in subsequent
@@ -232,7 +226,7 @@ def _create_type_server_agent(
     # subprocess.  build_mcp_tools is patched so nothing is actually
     # forked.
     r = client.post(
-        "/admin/mcp-server-types",
+        "/api/admin/mcp-server-types",
         headers=headers,
         json={
             "slug": "echo-mcp",
@@ -259,7 +253,7 @@ def _create_type_server_agent(
     # Instance: includes a secret env var so the AES encryption path
     # is exercised (and the response masking).
     r = client.post(
-        "/admin/mcp-servers",
+        "/api/admin/mcp-servers",
         headers=headers,
         json={
             "type_id": type_id,
@@ -273,7 +267,7 @@ def _create_type_server_agent(
 
     # Agent: references the server so the run-route's lease path runs.
     r = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         headers=headers,
         json={
             "name": "smoke-bot",
@@ -294,16 +288,14 @@ def _create_type_server_agent(
 # ---------------------------------------------------------------------------
 
 
-def test_full_lifecycle_nonstreaming(configured) -> None:  # noqa: ARG001
+def test_full_lifecycle_nonstreaming(configured) -> None:
     """Login -> create catalog -> create server -> create agent ->
     list -> run.  Asserts at every step so a regression in any layer
     fails with a pinpointable message."""
     from gargantua.main import create_app
 
     fake_agent = _FakeAgent()
-    fake_agent.set_result(
-        _FakeRunOutput(run_id="run-smoke-1", content="echoed: hello")
-    )
+    fake_agent.set_result(_FakeRunOutput(run_id="run-smoke-1", content="echoed: hello"))
 
     # Patch targets:
     # * ``gargantua.api.runs.build_agno_agent`` — the run route imports
@@ -320,9 +312,10 @@ def test_full_lifecycle_nonstreaming(configured) -> None:  # noqa: ARG001
     async def _fake_tools_builder(server, env, type_row, child_resources):
         return _FakeClosable()
 
-    with patch(
-        "gargantua.api.runs.build_agno_agent", return_value=fake_agent
-    ), patch("gargantua.main.build_mcp_tools", _fake_tools_builder):
+    with (
+        patch("gargantua.api.runs.build_agno_agent", return_value=fake_agent),
+        patch("gargantua.main.build_mcp_tools", _fake_tools_builder),
+    ):
         app = create_app()
         # ``with TestClient(app) as ...`` triggers the FastAPI lifespan
         # (bootstrap-admin + cache.start()); we'd be testing a half-app
@@ -334,7 +327,7 @@ def test_full_lifecycle_nonstreaming(configured) -> None:  # noqa: ARG001
 
             # 2. Verify /auth/me round-trips the token and resolves to
             #    a user row.
-            r = client.get("/auth/me", headers=_auth(token))
+            r = client.get("/api/auth/me", headers=_auth(token))
             assert r.status_code == 200, r.text
             me = r.json()
             assert me["username"] == BOOTSTRAP_ADMIN_USER
@@ -346,7 +339,7 @@ def test_full_lifecycle_nonstreaming(configured) -> None:  # noqa: ARG001
 
             # 4. The agent must show up in /me/agents (no archived
             #    filter false-positives, no admin-only field leaks).
-            r = client.get("/me/agents", headers=_auth(token))
+            r = client.get("/api/me/agents", headers=_auth(token))
             assert r.status_code == 200
             listing = r.json()
             assert listing["total"] == 1
@@ -364,7 +357,7 @@ def test_full_lifecycle_nonstreaming(configured) -> None:  # noqa: ARG001
             #      released it (cache snapshot empty / ref_count = 0)
             #    - have forwarded the JWT-derived user_id into arun
             r = client.post(
-                f"/v1/agents/{agent_id}/runs",
+                f"/api/v1/agents/{agent_id}/runs",
                 headers=_auth(token),
                 json={"input": "hello", "session_id": "smoke-sess"},
             )
@@ -387,13 +380,12 @@ def test_full_lifecycle_nonstreaming(configured) -> None:  # noqa: ARG001
             cache = app.state.mcp_cache
             for snap in cache.inspect():
                 assert snap.ref_count == 0, (
-                    f"server {snap.server_id} still has ref_count "
-                    f"{snap.ref_count} after the run"
+                    f"server {snap.server_id} still has ref_count {snap.ref_count} after the run"
                 )
 
             # 6. /admin/audit should have entries for every mutation
             #    we just did (catalog, server, agent).
-            r = client.get("/admin/audit", headers=_auth(token))
+            r = client.get("/api/admin/audit", headers=_auth(token))
             assert r.status_code == 200
             audit_actions = {row["action"] for row in r.json()["items"]}
             assert audit_actions >= {
@@ -408,7 +400,7 @@ def test_full_lifecycle_nonstreaming(configured) -> None:  # noqa: ARG001
 # ---------------------------------------------------------------------------
 
 
-def test_full_lifecycle_streaming(configured) -> None:  # noqa: ARG001
+def test_full_lifecycle_streaming(configured) -> None:
     """Same end-to-end shape but exercises the SSE response path.
 
     Confirms the streaming generator releases its lease after the
@@ -432,27 +424,26 @@ def test_full_lifecycle_streaming(configured) -> None:  # noqa: ARG001
     async def _fake_tools_builder(server, env, type_row, child_resources):
         return _FakeClosable()
 
-    with patch(
-        "gargantua.api.runs.build_agno_agent", return_value=fake_agent
-    ), patch("gargantua.main.build_mcp_tools", _fake_tools_builder):
+    with (
+        patch("gargantua.api.runs.build_agno_agent", return_value=fake_agent),
+        patch("gargantua.main.build_mcp_tools", _fake_tools_builder),
+    ):
         app = create_app()
         with TestClient(app, raise_server_exceptions=False) as client:
             token = _login_admin(client)
             _, _server_id, agent_id = _create_type_server_agent(client, token)
 
             r = client.post(
-                f"/v1/agents/{agent_id}/runs",
+                f"/api/v1/agents/{agent_id}/runs",
                 headers=_auth(token),
                 json={"input": "hi", "stream": True},
             )
             assert r.status_code == 200
             assert r.headers["content-type"].startswith("text/event-stream")
 
-            # Parse the SSE payload: data: <json>\n\n × N, then
+            # Parse the SSE payload: data: <json>\n\n x N, then
             # data: [DONE]\n\n.
-            chunks = [
-                line for line in r.text.split("\n\n") if line.startswith("data: ")
-            ]
+            chunks = [line for line in r.text.split("\n\n") if line.startswith("data: ")]
             assert len(chunks) == len(events) + 1, r.text
             parsed = [json.loads(c.removeprefix("data: ")) for c in chunks[:-1]]
             assert parsed == events

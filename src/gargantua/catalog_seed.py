@@ -39,7 +39,6 @@ from __future__ import annotations
 
 from typing import Any, Final
 
-
 CANONICAL_TYPES: Final[list[dict[str, Any]]] = [
     # -----------------------------------------------------------------------
     # postgres — read-only SQL access to a Postgres database

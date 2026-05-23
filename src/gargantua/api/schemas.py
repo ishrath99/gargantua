@@ -19,7 +19,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ---------------------------------------------------------------------------
 # Common
 # ---------------------------------------------------------------------------
@@ -231,9 +230,7 @@ class MCPServerUpdateIn(BaseModel):
     ``None`` to leave unchanged."""
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
-    env_tag: str | None = Field(
-        default=None, pattern=_ENV_TAG_PATTERN, max_length=32
-    )
+    env_tag: str | None = Field(default=None, pattern=_ENV_TAG_PATTERN, max_length=32)
     env_vars: dict[str, Any] | None = None
     command: str | None = None
     args: list[Any] | None = None

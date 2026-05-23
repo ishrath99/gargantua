@@ -19,7 +19,6 @@ from typer.testing import CliRunner
 
 from gargantua.db.models import AuditLog, User
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -28,7 +27,7 @@ from gargantua.db.models import AuditLog, User
 @pytest.fixture
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
-    truncate_db: Engine,  # noqa: ARG001 — clean schema per test
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     # The CLI builds a sync engine from ``settings.database_url``.
@@ -61,7 +60,7 @@ def sync_session_maker(migrated_engine: Engine) -> sessionmaker:
 
 def test_user_create_inserts_user_with_audit(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
@@ -99,7 +98,7 @@ def test_user_create_inserts_user_with_audit(
 
 def test_user_create_duplicate_username_exits_2(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
 ) -> None:
     from gargantua.admin import app
 
@@ -133,7 +132,7 @@ def test_user_create_duplicate_username_exits_2(
 
 def test_user_create_invalid_role_exits_3(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
 ) -> None:
     from gargantua.admin import app
 
@@ -160,7 +159,7 @@ def test_user_create_invalid_role_exits_3(
 
 def test_user_list_filters_and_shows_state(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
@@ -218,7 +217,7 @@ def test_user_list_filters_and_shows_state(
 
 def test_user_set_role_updates_and_logs(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
@@ -235,16 +234,12 @@ def test_user_set_role_updates_and_logs(
         )
         s.commit()
 
-    result = runner.invoke(
-        app, ["user", "set-role", "--username", "primary", "--role", "user"]
-    )
+    result = runner.invoke(app, ["user", "set-role", "--username", "primary", "--role", "user"])
     assert result.exit_code == 0, result.stdout
     assert "admin -> user" in result.stdout
 
     with sync_session_maker() as s:
-        user = s.execute(
-            select(User).where(User.username == "primary")
-        ).scalar_one()
+        user = s.execute(select(User).where(User.username == "primary")).scalar_one()
         assert user.role == "user"
 
         audit = s.execute(
@@ -258,38 +253,30 @@ def test_user_set_role_updates_and_logs(
 
 def test_user_set_role_blocks_last_admin(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
     from gargantua.auth.password import hash_password
 
     with sync_session_maker() as s:
-        s.add(
-            User(username="only", password_hash=hash_password("x"), role="admin")
-        )
+        s.add(User(username="only", password_hash=hash_password("x"), role="admin"))
         s.commit()
 
-    result = runner.invoke(
-        app, ["user", "set-role", "--username", "only", "--role", "user"]
-    )
+    result = runner.invoke(app, ["user", "set-role", "--username", "only", "--role", "user"])
     assert result.exit_code == 4
 
 
-def test_user_set_role_unknown_user_exits_2(
-    runner: CliRunner, configured_env  # noqa: ARG001
-) -> None:
+def test_user_set_role_unknown_user_exits_2(runner: CliRunner, configured_env) -> None:
     from gargantua.admin import app
 
-    result = runner.invoke(
-        app, ["user", "set-role", "--username", "ghost", "--role", "admin"]
-    )
+    result = runner.invoke(app, ["user", "set-role", "--username", "ghost", "--role", "admin"])
     assert result.exit_code == 2
 
 
 def test_user_set_role_no_op_does_not_write_audit(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
@@ -299,16 +286,12 @@ def test_user_set_role_no_op_does_not_write_audit(
         s.add(User(username="al", password_hash=hash_password("x"), role="user"))
         s.commit()
 
-    result = runner.invoke(
-        app, ["user", "set-role", "--username", "al", "--role", "user"]
-    )
+    result = runner.invoke(app, ["user", "set-role", "--username", "al", "--role", "user"])
     assert result.exit_code == 0
     assert "no change" in result.stdout.lower()
 
     with sync_session_maker() as s:
-        rows = s.execute(
-            select(AuditLog).where(AuditLog.action == "user.role_update")
-        ).all()
+        rows = s.execute(select(AuditLog).where(AuditLog.action == "user.role_update")).all()
     assert rows == []
 
 
@@ -319,7 +302,7 @@ def test_user_set_role_no_op_does_not_write_audit(
 
 def test_user_deactivate_then_activate(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
@@ -332,36 +315,24 @@ def test_user_deactivate_then_activate(
     r = runner.invoke(app, ["user", "deactivate", "--username", "al"])
     assert r.exit_code == 0
     with sync_session_maker() as s:
-        assert (
-            s.execute(select(User).where(User.username == "al"))
-            .scalar_one()
-            .is_active
-            is False
-        )
+        assert s.execute(select(User).where(User.username == "al")).scalar_one().is_active is False
 
     r = runner.invoke(app, ["user", "activate", "--username", "al"])
     assert r.exit_code == 0
     with sync_session_maker() as s:
-        assert (
-            s.execute(select(User).where(User.username == "al"))
-            .scalar_one()
-            .is_active
-            is True
-        )
+        assert s.execute(select(User).where(User.username == "al")).scalar_one().is_active is True
 
 
 def test_user_deactivate_last_admin_blocked(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.admin import app
     from gargantua.auth.password import hash_password
 
     with sync_session_maker() as s:
-        s.add(
-            User(username="only", password_hash=hash_password("x"), role="admin")
-        )
+        s.add(User(username="only", password_hash=hash_password("x"), role="admin"))
         s.commit()
 
     r = runner.invoke(app, ["user", "deactivate", "--username", "only"])
@@ -375,7 +346,7 @@ def test_user_deactivate_last_admin_blocked(
 
 def test_audit_list_shows_recent_entries(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
 ) -> None:
     from gargantua.admin import app
 
@@ -403,7 +374,7 @@ def test_audit_list_shows_recent_entries(
 
 def test_audit_list_filters_by_action(
     runner: CliRunner,
-    configured_env,  # noqa: ARG001
+    configured_env,
 ) -> None:
     from gargantua.admin import app
 
@@ -424,9 +395,7 @@ def test_audit_list_filters_by_action(
     assert "No audit entries" in r.stdout
 
 
-def test_audit_list_when_empty(
-    runner: CliRunner, configured_env  # noqa: ARG001
-) -> None:
+def test_audit_list_when_empty(runner: CliRunner, configured_env) -> None:
     from gargantua.admin import app
 
     r = runner.invoke(app, ["audit", "list"])

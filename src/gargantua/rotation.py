@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -38,7 +39,6 @@ from gargantua.secrets import (
     encrypt_json_with_kek,
     kek_fingerprint,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +158,7 @@ def rotate_all_secrets(
 def _rotate_table(
     session: Session,
     *,
-    model: type,
+    model: Any,
     ciphertext_attr: str,
     iv_attr: str,
     kek_id_attr: str,
@@ -168,7 +168,15 @@ def _rotate_table(
     to_fp: str,
     dry_run: bool,
 ) -> tuple[int, int, int]:
-    """Rotate one table.  Returns ``(rotated, skipped_empty, skipped_already_new)``."""
+    """Rotate one table.  Returns ``(rotated, skipped_empty, skipped_already_new)``.
+
+    ``model`` is intentionally typed as ``Any``: it's one of the SQLAlchemy
+    mapped classes :class:`MCPServer` or :class:`MCPServerChildResource`,
+    and we touch dynamic attributes (``.id``, ``.__tablename__``, the
+    encrypted-column triple) that the declarative base doesn't statically
+    expose. Call sites in :func:`rotate_all_secrets` provide the concrete
+    types.
+    """
     rotated = 0
     skipped_empty = 0
     skipped_already_new = 0
@@ -176,7 +184,7 @@ def _rotate_table(
     # Stream every row.  Tables holding at-rest secrets are operator-
     # curated configuration data, never user-generated; sizes stay small
     # enough that loading the row set into the session is fine.
-    rows = session.execute(select(model)).scalars().all()
+    rows: list[Any] = list(session.execute(select(model)).scalars().all())
 
     for row in rows:
         ciphertext = getattr(row, ciphertext_attr)

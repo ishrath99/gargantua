@@ -29,7 +29,6 @@ from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import AuditLog, User
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -71,7 +70,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001 — wipe schema before each test
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[tuple[Path, Path]]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -93,8 +92,8 @@ def app(configured_env) -> FastAPI:
     from gargantua.api.auth import router as auth_router
 
     app = FastAPI()
-    app.include_router(auth_router, prefix="/auth")
-    app.include_router(admin_router, prefix="/admin")
+    app.include_router(auth_router, prefix="/api/auth")
+    app.include_router(admin_router, prefix="/api/admin")
     return app
 
 
@@ -157,7 +156,7 @@ def _auth(token: str) -> dict[str, str]:
 
 
 def test_list_users_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/admin/users")
+    r = client.get("/api/admin/users")
     assert r.status_code == 401
 
 
@@ -165,7 +164,7 @@ def test_list_users_with_user_token_returns_403(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.get("/admin/users", headers=_auth(token))
+    r = client.get("/api/admin/users", headers=_auth(token))
     assert r.status_code == 403
 
 
@@ -173,7 +172,7 @@ def test_list_users_with_admin_token_returns_200(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/users", headers=_auth(token))
+    r = client.get("/api/admin/users", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
     assert body["total"] == 1
@@ -207,13 +206,13 @@ def test_list_users_paginates_and_filters(
 
     _, token = seeded_admin
 
-    r = client.get("/admin/users?role=user&page=1&page_size=2", headers=_auth(token))
+    r = client.get("/api/admin/users?role=user&page=1&page_size=2", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
     assert body["total"] == 5
     assert len(body["items"]) == 2
 
-    r = client.get("/admin/users?search=u3", headers=_auth(token))
+    r = client.get("/api/admin/users?search=u3", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
     assert body["total"] == 1
@@ -239,12 +238,12 @@ def test_list_users_excludes_inactive_by_default(
         s.commit()
 
     _, token = seeded_admin
-    r = client.get("/admin/users", headers=_auth(token))
+    r = client.get("/api/admin/users", headers=_auth(token))
     assert r.status_code == 200
     usernames = {u["username"] for u in r.json()["items"]}
     assert "dormant" not in usernames
 
-    r = client.get("/admin/users?include_inactive=true", headers=_auth(token))
+    r = client.get("/api/admin/users?include_inactive=true", headers=_auth(token))
     usernames = {u["username"] for u in r.json()["items"]}
     assert "dormant" in usernames
 
@@ -254,24 +253,20 @@ def test_list_users_excludes_inactive_by_default(
 # ---------------------------------------------------------------------------
 
 
-def test_get_user_returns_row(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_user_returns_row(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     admin_id, token = seeded_admin
-    r = client.get(f"/admin/users/{admin_id}", headers=_auth(token))
+    r = client.get(f"/api/admin/users/{admin_id}", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
     assert body["id"] == str(admin_id)
     assert body["username"] == "root"
 
 
-def test_get_user_404_when_missing(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_get_user_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     from uuid import uuid4
 
     _, token = seeded_admin
-    r = client.get(f"/admin/users/{uuid4()}", headers=_auth(token))
+    r = client.get(f"/api/admin/users/{uuid4()}", headers=_auth(token))
     assert r.status_code == 404
 
 
@@ -287,7 +282,7 @@ def test_create_user_201_and_audit_logged(
 ) -> None:
     admin_id, token = seeded_admin
     body = {"username": "newbie", "password": "longpassword1", "role": "user"}
-    r = client.post("/admin/users", json=body, headers=_auth(token))
+    r = client.post("/api/admin/users", json=body, headers=_auth(token))
     assert r.status_code == 201, r.text
     created = r.json()
     assert created["username"] == "newbie"
@@ -296,9 +291,7 @@ def test_create_user_201_and_audit_logged(
 
     # Verify the DB has the user *and* the audit row.
     with sync_session_maker() as s:
-        user = s.execute(
-            select(User).where(User.username == "newbie")
-        ).scalar_one()
+        user = s.execute(select(User).where(User.username == "newbie")).scalar_one()
         audit_rows = (
             s.execute(
                 select(AuditLog)
@@ -321,10 +314,10 @@ def test_create_user_rejects_duplicate_username(
 ) -> None:
     _, token = seeded_admin
     body = {"username": "alice", "password": "longpassword1", "role": "user"}
-    r1 = client.post("/admin/users", json=body, headers=_auth(token))
+    r1 = client.post("/api/admin/users", json=body, headers=_auth(token))
     assert r1.status_code == 201
 
-    r2 = client.post("/admin/users", json=body, headers=_auth(token))
+    r2 = client.post("/api/admin/users", json=body, headers=_auth(token))
     assert r2.status_code == 409
 
 
@@ -333,7 +326,7 @@ def test_create_user_rejects_invalid_role(
 ) -> None:
     _, token = seeded_admin
     r = client.post(
-        "/admin/users",
+        "/api/admin/users",
         json={"username": "bob", "password": "longpassword1", "role": "superhacker"},
         headers=_auth(token),
     )
@@ -345,7 +338,7 @@ def test_create_user_rejects_short_password(
 ) -> None:
     _, token = seeded_admin
     r = client.post(
-        "/admin/users",
+        "/api/admin/users",
         json={"username": "bob", "password": "short", "role": "user"},
         headers=_auth(token),
     )
@@ -376,7 +369,7 @@ def test_update_role_changes_role_and_logs(
 
     admin_id, token = seeded_admin
     r = client.patch(
-        f"/admin/users/{target.id}/role",
+        f"/api/admin/users/{target.id}/role",
         json={"role": "admin"},
         headers=_auth(token),
     )
@@ -404,7 +397,7 @@ def test_update_role_blocks_last_admin_demotion(
 ) -> None:
     admin_id, token = seeded_admin
     r = client.patch(
-        f"/admin/users/{admin_id}/role",
+        f"/api/admin/users/{admin_id}/role",
         json={"role": "user"},
         headers=_auth(token),
     )
@@ -419,16 +412,14 @@ def test_update_role_no_op_does_not_write_audit(
     """Setting the role to its current value writes no audit entry."""
     admin_id, token = seeded_admin
     r = client.patch(
-        f"/admin/users/{admin_id}/role",
+        f"/api/admin/users/{admin_id}/role",
         json={"role": "admin"},
         headers=_auth(token),
     )
     assert r.status_code == 200
 
     with sync_session_maker() as s:
-        count = s.execute(
-            select(AuditLog).where(AuditLog.action == "user.role_update")
-        ).all()
+        count = s.execute(select(AuditLog).where(AuditLog.action == "user.role_update")).all()
     assert count == []
 
 
@@ -455,16 +446,12 @@ def test_deactivate_user_blocks_login_and_logs(
         s.refresh(victim)
 
     admin_id, token = seeded_admin
-    r = client.post(
-        f"/admin/users/{victim.id}/deactivate", headers=_auth(token)
-    )
+    r = client.post(f"/api/admin/users/{victim.id}/deactivate", headers=_auth(token))
     assert r.status_code == 200, r.text
     assert r.json()["is_active"] is False
 
     # Login is now blocked.
-    r = client.post(
-        "/auth/login", json={"username": "victim", "password": "victimpw1"}
-    )
+    r = client.post("/api/auth/login", json={"username": "victim", "password": "victimpw1"})
     assert r.status_code == 401
 
     # Audit row was written.
@@ -502,25 +489,17 @@ def test_activate_user_restores_login(
         s.refresh(victim)
 
     _, token = seeded_admin
-    r = client.post(
-        f"/admin/users/{victim.id}/activate", headers=_auth(token)
-    )
+    r = client.post(f"/api/admin/users/{victim.id}/activate", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["is_active"] is True
 
-    r = client.post(
-        "/auth/login", json={"username": "victim", "password": "victimpw1"}
-    )
+    r = client.post("/api/auth/login", json={"username": "victim", "password": "victimpw1"})
     assert r.status_code == 200
 
 
-def test_deactivate_last_admin_blocked(
-    client: TestClient, seeded_admin: tuple[UUID, str]
-) -> None:
+def test_deactivate_last_admin_blocked(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     admin_id, token = seeded_admin
-    r = client.post(
-        f"/admin/users/{admin_id}/deactivate", headers=_auth(token)
-    )
+    r = client.post(f"/api/admin/users/{admin_id}/deactivate", headers=_auth(token))
     assert r.status_code == 409
 
 
@@ -544,16 +523,12 @@ def test_deactivate_already_inactive_user_is_noop(
         s.refresh(u)
 
     _, token = seeded_admin
-    r = client.post(f"/admin/users/{u.id}/deactivate", headers=_auth(token))
+    r = client.post(f"/api/admin/users/{u.id}/deactivate", headers=_auth(token))
     assert r.status_code == 200
 
     with sync_session_maker() as s:
         audit_rows = (
-            s.execute(
-                select(AuditLog).where(AuditLog.action == "user.deactivate")
-            )
-            .scalars()
-            .all()
+            s.execute(select(AuditLog).where(AuditLog.action == "user.deactivate")).scalars().all()
         )
     assert audit_rows == []
 
@@ -564,5 +539,5 @@ def test_deactivate_unknown_user_returns_404(
     from uuid import uuid4
 
     _, token = seeded_admin
-    r = client.post(f"/admin/users/{uuid4()}/deactivate", headers=_auth(token))
+    r = client.post(f"/api/admin/users/{uuid4()}/deactivate", headers=_auth(token))
     assert r.status_code == 404

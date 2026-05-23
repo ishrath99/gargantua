@@ -71,7 +71,7 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
     Usage::
 
-        @router.get("/me")
+        @router.get("/api/me")
         async def me(
             session: Annotated[AsyncSession, Depends(get_session)],
         ) -> UserOut:

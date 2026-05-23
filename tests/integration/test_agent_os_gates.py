@@ -60,7 +60,7 @@ def _reset_module_caches() -> None:
 def configured_app(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001 — wipes the schema
+    truncate_db: Engine,
     _db_ready: str,
 ) -> TestClient:
     """Boot ``gargantua.main.create_app`` with a fresh keypair and DB."""
@@ -91,19 +91,15 @@ def configured_app(
 
 
 def test_v1_agents_without_auth_returns_401(configured_app: TestClient) -> None:
-    r = configured_app.get("/v1/agents")
+    r = configured_app.get("/api/v1/agents")
     assert r.status_code == 401
 
 
 def test_v1_agents_with_admin_token_returns_200(configured_app: TestClient) -> None:
     from gargantua.auth import SCOPE_ADMIN, SCOPE_USER, mint_access_token
 
-    token = mint_access_token(
-        subject="admin-id", scopes=[SCOPE_ADMIN, SCOPE_USER]
-    )
-    r = configured_app.get(
-        "/v1/agents", headers={"Authorization": f"Bearer {token}"}
-    )
+    token = mint_access_token(subject="admin-id", scopes=[SCOPE_ADMIN, SCOPE_USER])
+    r = configured_app.get("/api/v1/agents", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200, r.text
     # No agents are registered by default — list should be empty.
     assert r.json() == []
@@ -116,18 +112,14 @@ def test_v1_agents_with_user_only_token_returns_403(
     from gargantua.auth import SCOPE_USER, mint_access_token
 
     token = mint_access_token(subject="alice-id", scopes=[SCOPE_USER])
-    r = configured_app.get(
-        "/v1/agents", headers={"Authorization": f"Bearer {token}"}
-    )
+    r = configured_app.get("/api/v1/agents", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 403
 
 
 def test_v1_agents_with_garbage_token_returns_401(
     configured_app: TestClient,
 ) -> None:
-    r = configured_app.get(
-        "/v1/agents", headers={"Authorization": "Bearer not-a-jwt"}
-    )
+    r = configured_app.get("/api/v1/agents", headers={"Authorization": "Bearer not-a-jwt"})
     assert r.status_code == 401
 
 
@@ -136,12 +128,10 @@ def test_v1_agents_with_wrong_audience_returns_401(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A token minted for a different audience must be rejected."""
-    from gargantua.auth import SCOPE_ADMIN, mint_access_token
-
     # Override the audience setting to mint a token aimed elsewhere, then
     # restore the original setting (so the server still checks against
     # the legitimate audience).
-    from gargantua.auth import tokens
+    from gargantua.auth import SCOPE_ADMIN, mint_access_token, tokens
     from gargantua.settings import get_settings
 
     monkeypatch.setenv("JWT_AUDIENCE", "some-other-app")
@@ -154,9 +144,7 @@ def test_v1_agents_with_wrong_audience_returns_401(
     get_settings.cache_clear()
     tokens.reset_keys_cache()
 
-    r = configured_app.get(
-        "/v1/agents", headers={"Authorization": f"Bearer {bad_token}"}
-    )
+    r = configured_app.get("/api/v1/agents", headers={"Authorization": f"Bearer {bad_token}"})
     assert r.status_code == 401
 
 
@@ -177,9 +165,7 @@ def test_auth_login_remains_unprotected(configured_app: TestClient) -> None:
     # route is reachable; the FastAPI route logic ran (which is what we're
     # checking), not the Agno JWT middleware (which would return a different
     # response shape).
-    r = configured_app.post(
-        "/auth/login", json={"username": "ghost", "password": "x"}
-    )
+    r = configured_app.post("/api/auth/login", json={"username": "ghost", "password": "x"})
     assert r.status_code == 401
     # The detail comes from our route, not Agno's middleware.
     assert r.json()["detail"] == "Invalid credentials"

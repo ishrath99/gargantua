@@ -8,17 +8,14 @@ archived types, name uniqueness, version bumps.
 from __future__ import annotations
 
 import base64
-import os
-from collections.abc import Iterator
+from datetime import UTC
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from gargantua.db.models import MCPServer, MCPServerType
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -51,11 +48,11 @@ def _seed_type(
     mode: str = "stdio",
     archived: bool = False,
 ) -> MCPServerType:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     t = MCPServerType(slug=slug, name=name, mode=mode)
     if archived:
-        t.archived_at = datetime.now(tz=timezone.utc)
+        t.archived_at = datetime.now(tz=UTC)
     s.add(t)
     s.flush()
     return t
@@ -66,9 +63,7 @@ def _seed_type(
 # ---------------------------------------------------------------------------
 
 
-def test_create_server_encrypts_env_vars(
-    sync_session_maker, master_key
-) -> None:
+def test_create_server_encrypts_env_vars(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import create, decrypt_env_vars
     from gargantua.secrets import kek_fingerprint
 
@@ -102,9 +97,7 @@ def test_create_server_encrypts_env_vars(
     }
 
 
-def test_create_server_with_no_env_vars_writes_nulls(
-    sync_session_maker, master_key
-) -> None:
+def test_create_server_with_no_env_vars_writes_nulls(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import create, decrypt_env_vars
 
     with sync_session_maker() as s:
@@ -125,21 +118,15 @@ def test_create_server_with_no_env_vars_writes_nulls(
     assert decrypt_env_vars(row) == {}
 
 
-def test_create_server_rejects_unknown_type(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_server_rejects_unknown_type(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import InvalidTypeRef, create
 
     with sync_session_maker() as s:
         with pytest.raises(InvalidTypeRef):
-            create(
-                s, type_id=uuid4(), name="x", env_tag="prod", env_vars={}
-            )
+            create(s, type_id=uuid4(), name="x", env_tag="prod", env_vars={})
 
 
-def test_create_server_rejects_archived_type(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_server_rejects_archived_type(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import InvalidTypeRef, create
 
     with sync_session_maker() as s:
@@ -152,9 +139,7 @@ def test_create_server_rejects_archived_type(
             create(s, type_id=tid, name="x", env_tag="prod")
 
 
-def test_create_server_rejects_duplicate_triple(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_server_rejects_duplicate_triple(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import DuplicateName, create
 
     with sync_session_maker() as s:
@@ -171,9 +156,7 @@ def test_create_server_rejects_duplicate_triple(
             create(s, type_id=tid, name="db", env_tag="prod")
 
 
-def test_create_server_allows_same_name_different_env_tag(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_create_server_allows_same_name_different_env_tag(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import create
 
     with sync_session_maker() as s:
@@ -192,9 +175,7 @@ def test_create_server_allows_same_name_different_env_tag(
 # ---------------------------------------------------------------------------
 
 
-def test_update_changes_only_specified_fields(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_update_changes_only_specified_fields(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import create, update
 
     with sync_session_maker() as s:
@@ -223,9 +204,7 @@ def test_update_changes_only_specified_fields(
     assert row.version == 2
 
 
-def test_update_env_vars_rotates_iv(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_update_env_vars_rotates_iv(sync_session_maker, master_key) -> None:
     """Submitting env_vars (even unchanged) writes a fresh IV.
 
     AES-GCM mandates non-reused IVs.  Each PATCH that touches env_vars
@@ -258,9 +237,7 @@ def test_update_env_vars_rotates_iv(
     assert bytes(row.env_vars) != original_ct
 
 
-def test_update_env_vars_empty_dict_clears(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_update_env_vars_empty_dict_clears(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import create, decrypt_env_vars, update
 
     with sync_session_maker() as s:
@@ -286,9 +263,7 @@ def test_update_env_vars_empty_dict_clears(
     assert decrypt_env_vars(row) == {}
 
 
-def test_update_no_changes_is_noop(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_update_no_changes_is_noop(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import create, update
 
     with sync_session_maker() as s:
@@ -308,7 +283,7 @@ def test_update_no_changes_is_noop(
     assert row.version == 1
 
 
-def test_update_missing_id_raises(sync_session_maker, master_key) -> None:  # noqa: ARG001
+def test_update_missing_id_raises(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import NotFound, update
 
     with sync_session_maker() as s:
@@ -316,7 +291,7 @@ def test_update_missing_id_raises(sync_session_maker, master_key) -> None:  # no
             update(s, server_id=uuid4(), name="ghost")
 
 
-def test_update_duplicate_name_raises(sync_session_maker, master_key) -> None:  # noqa: ARG001
+def test_update_duplicate_name_raises(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import DuplicateName, create, update
 
     with sync_session_maker() as s:
@@ -337,7 +312,7 @@ def test_update_duplicate_name_raises(sync_session_maker, master_key) -> None:  
 # ---------------------------------------------------------------------------
 
 
-def test_archive_then_unarchive(sync_session_maker, master_key) -> None:  # noqa: ARG001
+def test_archive_then_unarchive(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import archive, create, unarchive
 
     with sync_session_maker() as s:
@@ -358,7 +333,7 @@ def test_archive_then_unarchive(sync_session_maker, master_key) -> None:  # noqa
     assert u.archived_at is None
 
 
-def test_archive_idempotent(sync_session_maker, master_key) -> None:  # noqa: ARG001
+def test_archive_idempotent(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import archive, create
 
     with sync_session_maker() as s:
@@ -383,9 +358,7 @@ def test_archive_idempotent(sync_session_maker, master_key) -> None:  # noqa: AR
 # ---------------------------------------------------------------------------
 
 
-def test_list_filters_by_type_and_env_tag(
-    sync_session_maker, master_key  # noqa: ARG001
-) -> None:
+def test_list_filters_by_type_and_env_tag(sync_session_maker, master_key) -> None:
     from gargantua.repo.mcp_servers import create, list_servers
 
     with sync_session_maker() as s:
@@ -430,9 +403,7 @@ def test_decrypt_env_vars_raises_kek_mismatch_under_different_key(
     with sync_session_maker() as s:
         t = _seed_type(s)
         s.commit()
-        srv = create(
-            s, type_id=t.id, name="db", env_tag="prod", env_vars={"K": "v"}
-        )
+        srv = create(s, type_id=t.id, name="db", env_tag="prod", env_vars={"K": "v"})
         s.commit()
         sid = srv.id
 

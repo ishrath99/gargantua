@@ -20,8 +20,8 @@ Design notes:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 from uuid import UUID
 
 import typer
@@ -33,7 +33,6 @@ from gargantua.db.models import User
 from gargantua.repo import audit as audit_repo
 from gargantua.repo import users as users_repo
 from gargantua.settings import get_settings
-
 
 user_app = typer.Typer(
     name="user",
@@ -108,9 +107,7 @@ def _print_user_row(user: User) -> None:
 
 
 def _print_user_header() -> None:
-    typer.echo(
-        f"{'id':<36}  {'role':<5}  {'state':<8}  username"
-    )
+    typer.echo(f"{'id':<36}  {'role':<5}  {'state':<8}  username")
     typer.echo("-" * 80)
 
 
@@ -122,9 +119,7 @@ def _print_user_header() -> None:
 @user_app.command("create")
 def user_create(
     username: str = typer.Option(..., "--username", "-u", help="Unique username."),
-    role: str = typer.Option(
-        "user", "--role", "-r", help="Role: 'admin' or 'user'."
-    ),
+    role: str = typer.Option("user", "--role", "-r", help="Role: 'admin' or 'user'."),
     password: str | None = typer.Option(
         None,
         "--password",
@@ -142,23 +137,17 @@ def user_create(
     usernames, 3 on invalid roles.
     """
     if password is None:
-        password = typer.prompt(
-            "Password", hide_input=True, confirmation_prompt=True
-        )
+        password = typer.prompt("Password", hide_input=True, confirmation_prompt=True)
 
     with _session() as s:
         try:
-            user = users_repo.create_user(
-                s, username=username, password=password, role=role
-            )
+            user = users_repo.create_user(s, username=username, password=password, role=role)
         except users_repo.DuplicateUsername:
-            typer.secho(
-                f"User '{username}' already exists.", fg=typer.colors.RED, err=True
-            )
-            raise typer.Exit(code=2)
+            typer.secho(f"User '{username}' already exists.", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=2) from None
         except users_repo.InvalidRole as exc:
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
-            raise typer.Exit(code=3)
+            raise typer.Exit(code=3) from None
 
         audit_repo.record(
             s,
@@ -184,9 +173,7 @@ def user_list(
     role: str | None = typer.Option(
         None, "--role", "-r", help="Filter by role ('admin' or 'user')."
     ),
-    search: str | None = typer.Option(
-        None, "--search", "-s", help="Substring match on username."
-    ),
+    search: str | None = typer.Option(None, "--search", "-s", help="Substring match on username."),
     include_inactive: bool = typer.Option(
         False, "--include-inactive", help="Include deactivated users."
     ),
@@ -230,9 +217,7 @@ def user_set_role(
     with _session() as s:
         user = users_repo.get_by_username(s, username)
         if user is None:
-            typer.secho(
-                f"No user named '{username}'.", fg=typer.colors.RED, err=True
-            )
+            typer.secho(f"No user named '{username}'.", fg=typer.colors.RED, err=True)
             raise typer.Exit(code=2)
 
         before = _user_to_audit_dict(user)
@@ -244,10 +229,10 @@ def user_set_role(
             user = users_repo.set_role(s, user_id=user.id, new_role=role)
         except users_repo.InvalidRole as exc:
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
-            raise typer.Exit(code=3)
+            raise typer.Exit(code=3) from None
         except users_repo.LastAdminError as exc:
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
-            raise typer.Exit(code=4)
+            raise typer.Exit(code=4) from None
 
         audit_repo.record(
             s,
@@ -275,9 +260,7 @@ def _set_active_command(username: str, *, is_active: bool) -> None:
     with _session() as s:
         user = users_repo.get_by_username(s, username)
         if user is None:
-            typer.secho(
-                f"No user named '{username}'.", fg=typer.colors.RED, err=True
-            )
+            typer.secho(f"No user named '{username}'.", fg=typer.colors.RED, err=True)
             raise typer.Exit(code=2)
 
         before = _user_to_audit_dict(user)
@@ -290,7 +273,7 @@ def _set_active_command(username: str, *, is_active: bool) -> None:
             user = users_repo.set_active(s, user_id=user.id, is_active=is_active)
         except users_repo.LastAdminError as exc:
             typer.secho(str(exc), fg=typer.colors.RED, err=True)
-            raise typer.Exit(code=4)
+            raise typer.Exit(code=4) from None
 
         audit_repo.record(
             s,
@@ -352,17 +335,11 @@ def audit_list(
         typer.echo("No audit entries matched the filter.")
         return
 
-    typer.echo(
-        f"{'id':<8}  {'when (UTC)':<20}  {'actor':<36}  {'action':<24}  target"
-    )
+    typer.echo(f"{'id':<8}  {'when (UTC)':<20}  {'actor':<36}  {'action':<24}  target")
     typer.echo("-" * 120)
     for r in rows:
         when = r.created_at.strftime("%Y-%m-%d %H:%M:%S") if r.created_at else "-"
         actor = str(r.actor_id) if r.actor_id else "<system>"
-        target = (
-            f"{r.target_type}:{r.target_id}" if r.target_id else r.target_type
-        )
-        typer.echo(
-            f"{r.id:<8}  {when:<20}  {actor:<36}  {r.action:<24}  {target}"
-        )
+        target = f"{r.target_type}:{r.target_id}" if r.target_id else r.target_type
+        typer.echo(f"{r.id:<8}  {when:<20}  {actor:<36}  {r.action:<24}  {target}")
     typer.echo(f"\n{len(rows)} of {total} shown.")

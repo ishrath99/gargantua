@@ -51,9 +51,7 @@ def _seed_static_export(root: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
     (root / "index.html").write_text("<!doctype html><title>HOME</title>")
     (root / "admin").mkdir(exist_ok=True)
-    (root / "admin" / "index.html").write_text(
-        "<!doctype html><title>ADMIN</title>"
-    )
+    (root / "admin" / "index.html").write_text("<!doctype html><title>ADMIN</title>")
     assets = root / "_next" / "static" / "css"
     assets.mkdir(parents=True, exist_ok=True)
     (assets / "app.css").write_text("body{color:#000}")

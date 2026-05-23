@@ -32,7 +32,6 @@ from gargantua.mcp_tools import (
     CHILD_RESOURCES_KEY,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -80,7 +79,7 @@ class _RecordingMCPTools:
     so the builder's await-chain is exercised.
     """
 
-    instances: list["_RecordingMCPTools"] = []
+    instances: list[_RecordingMCPTools] = []
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.args = args
@@ -104,9 +103,7 @@ def _patched_mcp_tools(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace ``MCPTools`` symbol used by the builder for the duration
     of each test.  Auto-applied so every test gets a clean slate."""
     _RecordingMCPTools.reset()
-    monkeypatch.setattr(
-        "gargantua.mcp_tools.MCPTools", _RecordingMCPTools, raising=True
-    )
+    monkeypatch.setattr("gargantua.mcp_tools.MCPTools", _RecordingMCPTools, raising=True)
 
 
 # ---------------------------------------------------------------------------
@@ -121,9 +118,7 @@ async def test_stdio_uses_server_command_when_set() -> None:
     ``args=`` / ``env=`` directly for stdio)."""
     from gargantua.mcp_tools import build_mcp_tools
 
-    type_row = _type_row(
-        mode="stdio", default_command="default-cmd", default_args=["a"]
-    )
+    type_row = _type_row(mode="stdio", default_command="default-cmd", default_args=["a"])
     server = _server_row(command="server-cmd", args=["b", "c"])
     env = {"FOO": "bar", "API_KEY": "secret"}
 
@@ -143,9 +138,7 @@ async def test_stdio_falls_back_to_type_defaults() -> None:
     """If server.command / server.args are not set, type defaults apply."""
     from gargantua.mcp_tools import build_mcp_tools
 
-    type_row = _type_row(
-        mode="stdio", default_command="uvx", default_args=["postgres-mcp"]
-    )
+    type_row = _type_row(mode="stdio", default_command="uvx", default_args=["postgres-mcp"])
     server = _server_row(command=None, args=[])
     env: dict[str, Any] = {}
 
@@ -235,9 +228,7 @@ async def test_sse_with_plain_url_key() -> None:
 
     type_row = _type_row(mode="sse", default_command=None)
     server = _server_row()
-    tools = await build_mcp_tools(
-        server, {"URL": "https://x.example/sse"}, type_row
-    )
+    tools = await build_mcp_tools(server, {"URL": "https://x.example/sse"}, type_row)
     assert tools.kwargs["url"] == "https://x.example/sse"
 
 
@@ -307,7 +298,7 @@ async def test_unknown_mode_raises() -> None:
     type_row = _type_row(mode="websocket", default_command=None)
     server = _server_row()
 
-    with pytest.raises(RuntimeError, match="websocket|unknown"):
+    with pytest.raises(RuntimeError, match=r"websocket|unknown"):
         await build_mcp_tools(server, {}, type_row)
 
 
@@ -390,9 +381,7 @@ async def test_stdio_with_children_sets_env_var_with_json_payload() -> None:
         ),
     ]
 
-    tools = await build_mcp_tools(
-        server, {"X": "y"}, type_row, child_resources=children
-    )
+    tools = await build_mcp_tools(server, {"X": "y"}, type_row, child_resources=children)
     sp = tools.kwargs["server_params"]
     raw = sp.env[CHILD_RESOURCES_KEY]
     payload = json.loads(raw)
@@ -422,9 +411,7 @@ async def test_stdio_disabled_children_are_filtered_from_payload() -> None:
         _child(parent_id=parent_id, name="live"),
         _child(parent_id=parent_id, name="retired", enabled=False),
     ]
-    tools = await build_mcp_tools(
-        server, {"X": "y"}, type_row, child_resources=children
-    )
+    tools = await build_mcp_tools(server, {"X": "y"}, type_row, child_resources=children)
     payload = json.loads(tools.kwargs["server_params"].env[CHILD_RESOURCES_KEY])
     names = {entry["name"] for entry in payload}
     assert names == {"live"}
@@ -463,9 +450,7 @@ async def test_streamable_http_with_children_attaches_header_provider() -> None:
     parent_id = uuid4()
     type_row = _type_row(mode="streamable_http", default_command=None)
     server = _server_row(id=parent_id)
-    children = [
-        _child(parent_id=parent_id, name="orders", headers={"X-API-Key": "k"})
-    ]
+    children = [_child(parent_id=parent_id, name="orders", headers={"X-API-Key": "k"})]
 
     tools = await build_mcp_tools(
         server,

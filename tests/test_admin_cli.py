@@ -62,9 +62,7 @@ def test_two_generations_produce_different_keys(cli_runner: CliRunner) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_generate_jwt_keys_writes_pem_pair(
-    cli_runner: CliRunner, keys_dir: Path
-) -> None:
+def test_generate_jwt_keys_writes_pem_pair(cli_runner: CliRunner, keys_dir: Path) -> None:
     result = cli_runner.invoke(app, ["generate-jwt-keys", "--out-dir", str(keys_dir)])
     assert result.exit_code == 0, result.stdout
 
@@ -91,9 +89,7 @@ def test_generate_jwt_keys_sets_restrictive_permissions(
     assert stat.S_IMODE(public.stat().st_mode) == 0o644
 
 
-def test_generated_keys_can_sign_and_verify_rs256(
-    cli_runner: CliRunner, keys_dir: Path
-) -> None:
+def test_generated_keys_can_sign_and_verify_rs256(cli_runner: CliRunner, keys_dir: Path) -> None:
     cli_runner.invoke(app, ["generate-jwt-keys", "--out-dir", str(keys_dir)])
     private = (keys_dir / "jwt_private.pem").read_bytes()
     public = (keys_dir / "jwt_public.pem").read_bytes()
@@ -125,24 +121,18 @@ def test_generate_jwt_keys_refuses_overwrite_without_force(
     assert "Refusing to overwrite" in second.stdout
 
 
-def test_generate_jwt_keys_overwrites_with_force(
-    cli_runner: CliRunner, keys_dir: Path
-) -> None:
+def test_generate_jwt_keys_overwrites_with_force(cli_runner: CliRunner, keys_dir: Path) -> None:
     cli_runner.invoke(app, ["generate-jwt-keys", "--out-dir", str(keys_dir)])
     old_priv = (keys_dir / "jwt_private.pem").read_bytes()
 
-    result = cli_runner.invoke(
-        app, ["generate-jwt-keys", "--out-dir", str(keys_dir), "--force"]
-    )
+    result = cli_runner.invoke(app, ["generate-jwt-keys", "--out-dir", str(keys_dir), "--force"])
     assert result.exit_code == 0
 
     new_priv = (keys_dir / "jwt_private.pem").read_bytes()
     assert new_priv != old_priv
 
 
-def test_generate_jwt_keys_rejects_undersized_key(
-    cli_runner: CliRunner, keys_dir: Path
-) -> None:
+def test_generate_jwt_keys_rejects_undersized_key(cli_runner: CliRunner, keys_dir: Path) -> None:
     result = cli_runner.invoke(
         app,
         ["generate-jwt-keys", "--out-dir", str(keys_dir), "--key-size", "1024"],

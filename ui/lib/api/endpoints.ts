@@ -17,9 +17,9 @@ import type { UUID } from '@/lib/api/types';
 // ---------------------------------------------------------------------------
 
 export const authPaths = {
-  login: '/auth/login',
-  refresh: '/auth/refresh',
-  me: '/auth/me',
+  login: '/api/auth/login',
+  refresh: '/api/auth/refresh',
+  me: '/api/auth/me',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -28,57 +28,58 @@ export const authPaths = {
 
 export const adminPaths = {
   // Users
-  users: '/admin/users',
-  user: (id: UUID) => `/admin/users/${id}`,
-  userRole: (id: UUID) => `/admin/users/${id}/role`,
-  userDeactivate: (id: UUID) => `/admin/users/${id}/deactivate`,
-  userActivate: (id: UUID) => `/admin/users/${id}/activate`,
+  users: '/api/admin/users',
+  user: (id: UUID) => `/api/admin/users/${id}`,
+  userRole: (id: UUID) => `/api/admin/users/${id}/role`,
+  userDeactivate: (id: UUID) => `/api/admin/users/${id}/deactivate`,
+  userActivate: (id: UUID) => `/api/admin/users/${id}/activate`,
 
   // Audit
-  audit: '/admin/audit',
-  auditEntry: (id: number) => `/admin/audit/${id}`,
+  audit: '/api/admin/audit',
+  auditEntry: (id: number) => `/api/admin/audit/${id}`,
 
   // MCP server types (catalog)
-  mcpServerTypes: '/admin/mcp-server-types',
-  mcpServerType: (id: UUID) => `/admin/mcp-server-types/${id}`,
-  mcpServerTypeArchive: (id: UUID) => `/admin/mcp-server-types/${id}/archive`,
+  mcpServerTypes: '/api/admin/mcp-server-types',
+  mcpServerType: (id: UUID) => `/api/admin/mcp-server-types/${id}`,
+  mcpServerTypeArchive: (id: UUID) =>
+    `/api/admin/mcp-server-types/${id}/archive`,
   mcpServerTypeUnarchive: (id: UUID) =>
-    `/admin/mcp-server-types/${id}/unarchive`,
+    `/api/admin/mcp-server-types/${id}/unarchive`,
 
   // MCP servers
-  mcpServers: '/admin/mcp-servers',
-  mcpServer: (id: UUID) => `/admin/mcp-servers/${id}`,
-  mcpServerArchive: (id: UUID) => `/admin/mcp-servers/${id}/archive`,
-  mcpServerUnarchive: (id: UUID) => `/admin/mcp-servers/${id}/unarchive`,
+  mcpServers: '/api/admin/mcp-servers',
+  mcpServer: (id: UUID) => `/api/admin/mcp-servers/${id}`,
+  mcpServerArchive: (id: UUID) => `/api/admin/mcp-servers/${id}/archive`,
+  mcpServerUnarchive: (id: UUID) => `/api/admin/mcp-servers/${id}/unarchive`,
 
   // Child resources (nested under a server)
   childResources: (serverId: UUID) =>
-    `/admin/mcp-servers/${serverId}/child-resources`,
+    `/api/admin/mcp-servers/${serverId}/child-resources`,
   childResource: (serverId: UUID, childId: UUID) =>
-    `/admin/mcp-servers/${serverId}/child-resources/${childId}`,
+    `/api/admin/mcp-servers/${serverId}/child-resources/${childId}`,
   childResourceEnable: (serverId: UUID, childId: UUID) =>
-    `/admin/mcp-servers/${serverId}/child-resources/${childId}/enable`,
+    `/api/admin/mcp-servers/${serverId}/child-resources/${childId}/enable`,
   childResourceDisable: (serverId: UUID, childId: UUID) =>
-    `/admin/mcp-servers/${serverId}/child-resources/${childId}/disable`,
+    `/api/admin/mcp-servers/${serverId}/child-resources/${childId}/disable`,
 
   // Agents
-  agents: '/admin/agents',
-  agent: (id: UUID) => `/admin/agents/${id}`,
-  agentArchive: (id: UUID) => `/admin/agents/${id}/archive`,
-  agentUnarchive: (id: UUID) => `/admin/agents/${id}/unarchive`,
-  agentTemplates: '/admin/agent-templates',
+  agents: '/api/admin/agents',
+  agent: (id: UUID) => `/api/admin/agents/${id}`,
+  agentArchive: (id: UUID) => `/api/admin/agents/${id}/archive`,
+  agentUnarchive: (id: UUID) => `/api/admin/agents/${id}/unarchive`,
+  agentTemplates: '/api/admin/agent-templates',
   agentTemplate: (slug: string) =>
-    `/admin/agent-templates/${encodeURIComponent(slug)}`,
+    `/api/admin/agent-templates/${encodeURIComponent(slug)}`,
 
   // Teams
-  teams: '/admin/teams',
-  team: (id: UUID) => `/admin/teams/${id}`,
-  teamArchive: (id: UUID) => `/admin/teams/${id}/archive`,
-  teamUnarchive: (id: UUID) => `/admin/teams/${id}/unarchive`,
+  teams: '/api/admin/teams',
+  team: (id: UUID) => `/api/admin/teams/${id}`,
+  teamArchive: (id: UUID) => `/api/admin/teams/${id}/archive`,
+  teamUnarchive: (id: UUID) => `/api/admin/teams/${id}/unarchive`,
 
   // MCP cache (runtime introspection)
-  mcpCache: '/admin/mcp-cache',
-  mcpCacheEvict: (serverId: UUID) => `/admin/mcp-cache/${serverId}/evict`,
+  mcpCache: '/api/admin/mcp-cache',
+  mcpCacheEvict: (serverId: UUID) => `/api/admin/mcp-cache/${serverId}/evict`,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -86,8 +87,8 @@ export const adminPaths = {
 // ---------------------------------------------------------------------------
 
 export const mePaths = {
-  agents: '/me/agents',
-  teams: '/me/teams',
+  agents: '/api/me/agents',
+  teams: '/api/me/teams',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -95,8 +96,8 @@ export const mePaths = {
 // ---------------------------------------------------------------------------
 
 export const runPaths = {
-  agentRun: (id: UUID) => `/v1/agents/${id}/runs`,
-  teamRun: (id: UUID) => `/v1/teams/${id}/runs`,
+  agentRun: (id: UUID) => `/api/v1/agents/${id}/runs`,
+  teamRun: (id: UUID) => `/api/v1/teams/${id}/runs`,
 } as const;
 
 // ---------------------------------------------------------------------------

@@ -26,7 +26,7 @@ Typed errors:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Final
 from uuid import UUID
 
@@ -37,7 +37,6 @@ from sqlalchemy.orm import Session
 
 from gargantua.db.models import MCPServer, MCPServerType
 from gargantua.secrets import KekMismatch, decrypt_json, encrypt_json
-
 
 # ---------------------------------------------------------------------------
 # Exceptions
@@ -72,9 +71,7 @@ class KekMismatchOnRead(RepoError):
 # ---------------------------------------------------------------------------
 
 
-_UPDATABLE_FIELDS: Final[frozenset[str]] = frozenset(
-    {"name", "env_tag", "command", "args"}
-)
+_UPDATABLE_FIELDS: Final[frozenset[str]] = frozenset({"name", "env_tag", "command", "args"})
 
 
 def _check_type_active_sync(session: Session, type_id: UUID) -> None:
@@ -94,9 +91,7 @@ def _check_type_active_sync(session: Session, type_id: UUID) -> None:
         )
 
 
-async def _check_type_active_async(
-    session: AsyncSession, type_id: UUID
-) -> None:
+async def _check_type_active_async(session: AsyncSession, type_id: UUID) -> None:
     t = await session.get(MCPServerType, type_id)
     if t is None:
         raise InvalidTypeRef(f"mcp_server_type {type_id} does not exist")
@@ -107,7 +102,9 @@ async def _check_type_active_async(
         )
 
 
-def _encrypt_env_vars_or_none(env_vars: dict[str, Any] | None):
+def _encrypt_env_vars_or_none(
+    env_vars: dict[str, Any] | None,
+) -> tuple[bytes | None, bytes | None, str | None]:
     """Return (ciphertext, iv, kek_id) — or (None, None, None) if the dict is None / empty.
 
     Empty dicts collapse to all-NULL columns so the row never sits in a
@@ -125,7 +122,7 @@ def _build_list_query(
     env_tag: str | None,
     search: str | None,
     include_archived: bool,
-):
+) -> tuple[Any, Any]:
     stmt = select(MCPServer)
     count_stmt = select(func.count()).select_from(MCPServer)
 
@@ -150,9 +147,7 @@ def _build_list_query(
         stmt = stmt.where(like)
         count_stmt = count_stmt.where(like)
 
-    stmt = stmt.order_by(
-        MCPServer.env_tag.asc(), MCPServer.name.asc()
-    )
+    stmt = stmt.order_by(MCPServer.env_tag.asc(), MCPServer.name.asc())
     return stmt, count_stmt
 
 
@@ -164,10 +159,7 @@ def _is_dup_name(exc: IntegrityError) -> bool:
     a future rename doesn't silently turn this into a 500.
     """
     detail = str(exc.orig)
-    return (
-        "uq_mcp_server_type_id_name_env_tag" in detail
-        or "uq_mcp_server_type_name_env" in detail
-    )
+    return "uq_mcp_server_type_id_name_env_tag" in detail or "uq_mcp_server_type_name_env" in detail
 
 
 # ---------------------------------------------------------------------------
@@ -186,11 +178,7 @@ def decrypt_env_vars(server: MCPServer) -> dict[str, Any]:
     rotation hint — the data isn't lost, but operators must finish
     the in-progress rotation before reads can succeed.
     """
-    if (
-        server.env_vars is None
-        and server.env_var_iv is None
-        and server.env_var_kek_id is None
-    ):
+    if server.env_vars is None and server.env_var_iv is None and server.env_var_kek_id is None:
         return {}
     if server.env_vars is None or server.env_var_iv is None or server.env_var_kek_id is None:
         # Schema permits this but it's never expected — surface loudly
@@ -353,7 +341,7 @@ def archive(session: Session, *, server_id: UUID) -> MCPServer:
         raise NotFound(str(server_id))
     if row.archived_at is not None:
         return row
-    row.archived_at = datetime.now(tz=timezone.utc)
+    row.archived_at = datetime.now(tz=UTC)
     session.flush()
     session.refresh(row)
     return row
@@ -376,9 +364,7 @@ def unarchive(session: Session, *, server_id: UUID) -> MCPServer:
 # ---------------------------------------------------------------------------
 
 
-async def aget_by_id(
-    session: AsyncSession, server_id: UUID
-) -> MCPServer | None:
+async def aget_by_id(session: AsyncSession, server_id: UUID) -> MCPServer | None:
     return await session.get(MCPServer, server_id)
 
 
@@ -498,23 +484,19 @@ async def aupdate(
     return row
 
 
-async def aarchive(
-    session: AsyncSession, *, server_id: UUID
-) -> MCPServer:
+async def aarchive(session: AsyncSession, *, server_id: UUID) -> MCPServer:
     row = await session.get(MCPServer, server_id)
     if row is None:
         raise NotFound(str(server_id))
     if row.archived_at is not None:
         return row
-    row.archived_at = datetime.now(tz=timezone.utc)
+    row.archived_at = datetime.now(tz=UTC)
     await session.flush()
     await session.refresh(row)
     return row
 
 
-async def aunarchive(
-    session: AsyncSession, *, server_id: UUID
-) -> MCPServer:
+async def aunarchive(session: AsyncSession, *, server_id: UUID) -> MCPServer:
     row = await session.get(MCPServer, server_id)
     if row is None:
         raise NotFound(str(server_id))
@@ -538,9 +520,9 @@ __all__ = [
     "acreate",
     "aget_by_id",
     "alist_servers",
+    "archive",
     "aunarchive",
     "aupdate",
-    "archive",
     "create",
     "decrypt_env_vars",
     "get_by_id",

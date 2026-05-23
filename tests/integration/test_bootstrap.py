@@ -27,7 +27,7 @@ def _reset_caches() -> None:
 @pytest.fixture
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
-    truncate_db: Engine,  # noqa: ARG001 — wipes the schema
+    truncate_db: Engine,
     _db_ready: str,
 ) -> None:
     monkeypatch.setenv("DATABASE_URL_ASYNC", _db_ready)
@@ -42,7 +42,7 @@ def configured_env(
 
 
 async def test_bootstrap_creates_admin_when_db_empty_and_env_set(
-    configured_env: None,  # noqa: ARG001
+    configured_env: None,
     monkeypatch: pytest.MonkeyPatch,
     sync_session_maker: sessionmaker,
 ) -> None:
@@ -65,7 +65,7 @@ async def test_bootstrap_creates_admin_when_db_empty_and_env_set(
 
 
 async def test_bootstrap_is_noop_when_users_table_has_rows(
-    configured_env: None,  # noqa: ARG001
+    configured_env: None,
     monkeypatch: pytest.MonkeyPatch,
     sync_session_maker: sessionmaker,
 ) -> None:
@@ -99,7 +99,7 @@ async def test_bootstrap_is_noop_when_users_table_has_rows(
 
 
 async def test_bootstrap_is_noop_when_env_not_set(
-    configured_env: None,  # noqa: ARG001
+    configured_env: None,
     sync_session_maker: sessionmaker,
 ) -> None:
     from gargantua.bootstrap import bootstrap_admin_if_needed
@@ -116,7 +116,7 @@ async def test_bootstrap_is_noop_when_env_not_set(
 
 
 async def test_bootstrap_is_noop_when_only_username_is_set(
-    configured_env: None,  # noqa: ARG001
+    configured_env: None,
     monkeypatch: pytest.MonkeyPatch,
     sync_session_maker: sessionmaker,
 ) -> None:
@@ -138,7 +138,7 @@ async def test_bootstrap_is_noop_when_only_username_is_set(
 
 
 async def test_bootstrap_stored_hash_verifies_with_argon2id(
-    configured_env: None,  # noqa: ARG001
+    configured_env: None,
     monkeypatch: pytest.MonkeyPatch,
     sync_session_maker: sessionmaker,
 ) -> None:

@@ -34,7 +34,6 @@ from gargantua.db.session import get_session
 from gargantua.repo import agents as agents_repo
 from gargantua.repo import teams as teams_repo
 
-
 router = APIRouter()
 
 

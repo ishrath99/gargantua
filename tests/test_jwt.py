@@ -14,7 +14,6 @@ The settings layer threads issuer / audience / TTLs in.  These tests pin the
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 import jwt as pyjwt
 import pytest
@@ -57,7 +56,7 @@ def other_public_key() -> bytes:
 
 
 def test_mint_access_round_trips_subject_and_scopes(keypair: dict[str, bytes]) -> None:
-    from gargantua.auth.jwt import mint_access, decode
+    from gargantua.auth.jwt import decode, mint_access
 
     token = mint_access(
         subject="alice",
@@ -93,7 +92,7 @@ def test_mint_access_uses_rs256_header(keypair: dict[str, bytes]) -> None:
 
 
 def test_mint_refresh_marks_typ_refresh(keypair: dict[str, bytes]) -> None:
-    from gargantua.auth.jwt import mint_refresh, decode
+    from gargantua.auth.jwt import decode, mint_refresh
 
     token = mint_refresh(
         subject="alice",
@@ -114,7 +113,7 @@ def test_mint_refresh_marks_typ_refresh(keypair: dict[str, bytes]) -> None:
 
 
 def test_decode_rejects_expired_token(keypair: dict[str, bytes]) -> None:
-    from gargantua.auth.jwt import InvalidToken, mint_access, decode
+    from gargantua.auth.jwt import InvalidToken, decode, mint_access
 
     token = mint_access(
         subject="alice",
@@ -138,7 +137,7 @@ def test_decode_rejects_expired_token(keypair: dict[str, bytes]) -> None:
 
 
 def test_decode_rejects_wrong_audience(keypair: dict[str, bytes]) -> None:
-    from gargantua.auth.jwt import InvalidToken, mint_access, decode
+    from gargantua.auth.jwt import InvalidToken, decode, mint_access
 
     token = mint_access(
         subject="alice",
@@ -153,7 +152,7 @@ def test_decode_rejects_wrong_audience(keypair: dict[str, bytes]) -> None:
 
 
 def test_decode_rejects_wrong_issuer(keypair: dict[str, bytes]) -> None:
-    from gargantua.auth.jwt import InvalidToken, mint_access, decode
+    from gargantua.auth.jwt import InvalidToken, decode, mint_access
 
     token = mint_access(
         subject="alice",
@@ -167,10 +166,8 @@ def test_decode_rejects_wrong_issuer(keypair: dict[str, bytes]) -> None:
         decode(token, public_key=keypair["public"], issuer="gargantua", audience="gargantua")
 
 
-def test_decode_rejects_wrong_signature(
-    keypair: dict[str, bytes], other_public_key: bytes
-) -> None:
-    from gargantua.auth.jwt import InvalidToken, mint_access, decode
+def test_decode_rejects_wrong_signature(keypair: dict[str, bytes], other_public_key: bytes) -> None:
+    from gargantua.auth.jwt import InvalidToken, decode, mint_access
 
     token = mint_access(
         subject="alice",

@@ -7,7 +7,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'gargantua',
-  description: 'DB-first multi-agent SRE platform.',
+  description: 'DB-first control plane for multi-agent systems and MCP servers.',
 };
 
 /**

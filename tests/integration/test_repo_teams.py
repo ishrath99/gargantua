@@ -7,7 +7,7 @@ archive semantics.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -15,7 +15,6 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from gargantua.db.models import Agent, Team
-
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -35,7 +34,7 @@ def _seed_agent(
 ) -> Agent:
     a = Agent(name=name, model="gpt-5", instructions="i")
     if archived:
-        a.archived_at = datetime.now(tz=timezone.utc)
+        a.archived_at = datetime.now(tz=UTC)
     s.add(a)
     s.flush()
     return a
@@ -477,9 +476,7 @@ async def test_async_create_and_update_revalidates_members(
 
     dsn = truncate_db.url.render_as_string(hide_password=False)
     async_engine = create_async_engine(dsn, future=True)
-    async_sm = async_sessionmaker(
-        async_engine, expire_on_commit=False, class_=AsyncSession
-    )
+    async_sm = async_sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
     try:
         async with async_sm() as s:
             team = await acreate(

@@ -198,7 +198,7 @@ async function tryRefresh(): Promise<boolean> {
   const refresh = getRefreshToken();
   if (refresh === null) return false;
   try {
-    const pair = await apiFetch<TokenPair>('/auth/refresh', {
+    const pair = await apiFetch<TokenPair>('/api/auth/refresh', {
       method: 'POST',
       body: { refresh_token: refresh },
       skipAuthRefresh: true, // avoid recursion

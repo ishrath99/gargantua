@@ -1,0 +1,51 @@
+name: Feature request
+description: Suggest a new feature or improvement.
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. The smaller and more specific the
+        proposal, the more likely it gets picked up.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the pain point, not the solution. Concrete examples help.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: |
+        What would you like gargantua to do? Sketch the UX (new endpoint,
+        new admin column, new CLI flag, etc.). If you've already started a
+        PR, link it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you've tried, related tools, or "do nothing".
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where does this belong?
+      multiple: true
+      options:
+        - Backend (FastAPI / Postgres)
+        - MCP cache / lifecycle
+        - Auth / RBAC / audit
+        - Secrets / encryption
+        - UI (Next.js)
+        - Admin CLI
+        - Docs / runbook
+        - CI / release / packaging
+    validations:
+      required: true

@@ -27,7 +27,6 @@ from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import User
 
-
 # ---------------------------------------------------------------------------
 # Helpers + fixtures
 # ---------------------------------------------------------------------------
@@ -69,7 +68,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001 — ensures the schema is fresh
+    truncate_db: Engine,
     _db_ready: str,
 ) -> tuple[Path, Path]:
     """Point Settings at the test DB + a fresh keypair, return the keypair."""
@@ -92,7 +91,7 @@ def app(configured_env: tuple[Path, Path]) -> FastAPI:
     from gargantua.api.auth import router as auth_router
 
     app = FastAPI()
-    app.include_router(auth_router, prefix="/auth", tags=["auth"])
+    app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
     return app
 
 
@@ -107,9 +106,7 @@ def sync_session_maker(migrated_engine: Engine) -> sessionmaker:
     return sessionmaker(bind=migrated_engine, expire_on_commit=False, future=True)
 
 
-def _seed_user(
-    sm: sessionmaker, *, username: str, password: str, role: str
-) -> User:
+def _seed_user(sm: sessionmaker, *, username: str, password: str, role: str) -> User:
     from gargantua.auth.password import hash_password
 
     with sm() as session:
@@ -134,9 +131,7 @@ def test_login_success_returns_access_and_refresh(
 ) -> None:
     _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
 
-    r = client.post(
-        "/auth/login", json={"username": "alice", "password": "hunter22!"}
-    )
+    r = client.post("/api/auth/login", json={"username": "alice", "password": "hunter22!"})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["token_type"] == "bearer"
@@ -151,7 +146,7 @@ def test_login_admin_token_carries_admin_scope(
     from gargantua.auth import SCOPE_ADMIN, SCOPE_USER, decode_token
 
     _seed_user(sync_session_maker, username="root", password="s3cret!", role="admin")
-    r = client.post("/auth/login", json={"username": "root", "password": "s3cret!"})
+    r = client.post("/api/auth/login", json={"username": "root", "password": "s3cret!"})
     assert r.status_code == 200
 
     claims = decode_token(r.json()["access_token"])
@@ -165,9 +160,7 @@ def test_login_user_role_only_carries_user_scope(
     from gargantua.auth import SCOPE_ADMIN, SCOPE_USER, decode_token
 
     _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
-    r = client.post(
-        "/auth/login", json={"username": "alice", "password": "hunter22!"}
-    )
+    r = client.post("/api/auth/login", json={"username": "alice", "password": "hunter22!"})
     claims = decode_token(r.json()["access_token"])
     assert claims["scopes"] == [SCOPE_USER]
     assert SCOPE_ADMIN not in claims["scopes"]
@@ -177,17 +170,17 @@ def test_login_wrong_password_returns_401(
     client: TestClient, sync_session_maker: sessionmaker
 ) -> None:
     _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
-    r = client.post("/auth/login", json={"username": "alice", "password": "wrong"})
+    r = client.post("/api/auth/login", json={"username": "alice", "password": "wrong"})
     assert r.status_code == 401
 
 
 def test_login_unknown_user_returns_401(client: TestClient) -> None:
-    r = client.post("/auth/login", json={"username": "ghost", "password": "x"})
+    r = client.post("/api/auth/login", json={"username": "ghost", "password": "x"})
     assert r.status_code == 401
 
 
 def test_login_missing_fields_returns_422(client: TestClient) -> None:
-    r = client.post("/auth/login", json={"username": "alice"})
+    r = client.post("/api/auth/login", json={"username": "alice"})
     assert r.status_code == 422
 
 
@@ -198,17 +191,13 @@ def test_login_refuses_inactive_user_with_generic_error(
     a wrong password, so the route can't be used to enumerate inactive
     accounts.
     """
-    user = _seed_user(
-        sync_session_maker, username="ghost", password="hunter22!", role="user"
-    )
+    user = _seed_user(sync_session_maker, username="ghost", password="hunter22!", role="user")
     with sync_session_maker() as s:
         row = s.get(User, user.id)
         row.is_active = False
         s.commit()
 
-    r = client.post(
-        "/auth/login", json={"username": "ghost", "password": "hunter22!"}
-    )
+    r = client.post("/api/auth/login", json={"username": "ghost", "password": "hunter22!"})
     assert r.status_code == 401
     assert r.json()["detail"] == "Invalid credentials"
 
@@ -223,12 +212,12 @@ def test_refresh_with_valid_refresh_token_returns_new_pair(
 ) -> None:
     _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
     login = client.post(
-        "/auth/login", json={"username": "alice", "password": "hunter22!"}
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
     ).json()
 
     # Sleep 1s so iat differs and the new access_token byte-string is distinct.
     time.sleep(1)
-    r = client.post("/auth/refresh", json={"refresh_token": login["refresh_token"]})
+    r = client.post("/api/auth/refresh", json={"refresh_token": login["refresh_token"]})
     assert r.status_code == 200, r.text
     refreshed = r.json()
     assert refreshed["token_type"] == "bearer"
@@ -243,27 +232,25 @@ def test_refresh_with_access_token_returns_401(
 ) -> None:
     _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
     login = client.post(
-        "/auth/login", json={"username": "alice", "password": "hunter22!"}
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
     ).json()
 
     # An access token must NOT be accepted on /refresh — only refresh tokens.
-    r = client.post("/auth/refresh", json={"refresh_token": login["access_token"]})
+    r = client.post("/api/auth/refresh", json={"refresh_token": login["access_token"]})
     assert r.status_code == 401
 
 
 def test_refresh_with_garbage_token_returns_401(client: TestClient) -> None:
-    r = client.post("/auth/refresh", json={"refresh_token": "not-a-jwt"})
+    r = client.post("/api/auth/refresh", json={"refresh_token": "not-a-jwt"})
     assert r.status_code == 401
 
 
 def test_refresh_for_deleted_user_returns_401(
     client: TestClient, sync_session_maker: sessionmaker
 ) -> None:
-    user = _seed_user(
-        sync_session_maker, username="alice", password="hunter22!", role="user"
-    )
+    user = _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
     login = client.post(
-        "/auth/login", json={"username": "alice", "password": "hunter22!"}
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
     ).json()
 
     # Hard-delete the user out from under the still-valid refresh token.
@@ -271,7 +258,7 @@ def test_refresh_for_deleted_user_returns_401(
         session.query(User).filter(User.id == user.id).delete()
         session.commit()
 
-    r = client.post("/auth/refresh", json={"refresh_token": login["refresh_token"]})
+    r = client.post("/api/auth/refresh", json={"refresh_token": login["refresh_token"]})
     assert r.status_code == 401
 
 
@@ -279,11 +266,9 @@ def test_refresh_for_deactivated_user_returns_401(
     client: TestClient, sync_session_maker: sessionmaker
 ) -> None:
     """Once the user is deactivated, *outstanding* refresh tokens must stop working."""
-    user = _seed_user(
-        sync_session_maker, username="alice", password="hunter22!", role="user"
-    )
+    user = _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
     login = client.post(
-        "/auth/login", json={"username": "alice", "password": "hunter22!"}
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
     ).json()
 
     with sync_session_maker() as s:
@@ -291,7 +276,7 @@ def test_refresh_for_deactivated_user_returns_401(
         row.is_active = False
         s.commit()
 
-    r = client.post("/auth/refresh", json={"refresh_token": login["refresh_token"]})
+    r = client.post("/api/auth/refresh", json={"refresh_token": login["refresh_token"]})
     assert r.status_code == 401
 
 
@@ -301,23 +286,17 @@ def test_refresh_for_deactivated_user_returns_401(
 
 
 def test_me_requires_authentication(client: TestClient) -> None:
-    r = client.get("/auth/me")
+    r = client.get("/api/auth/me")
     assert r.status_code == 401
 
 
-def test_me_returns_user_payload(
-    client: TestClient, sync_session_maker: sessionmaker
-) -> None:
-    user = _seed_user(
-        sync_session_maker, username="alice", password="hunter22!", role="user"
-    )
+def test_me_returns_user_payload(client: TestClient, sync_session_maker: sessionmaker) -> None:
+    user = _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
     login = client.post(
-        "/auth/login", json={"username": "alice", "password": "hunter22!"}
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
     ).json()
 
-    r = client.get(
-        "/auth/me", headers={"Authorization": f"Bearer {login['access_token']}"}
-    )
+    r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {login['access_token']}"})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["id"] == str(user.id)

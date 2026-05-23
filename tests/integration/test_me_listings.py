@@ -17,7 +17,7 @@ The tests follow the same fixture pattern as ``test_admin_agents.py``
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -30,7 +30,6 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from gargantua.db.models import Agent, Team, User
-
 
 # ---------------------------------------------------------------------------
 # Fixtures (mirror admin test pattern)
@@ -73,7 +72,7 @@ def _reset_caches() -> None:
 def configured_env(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    truncate_db: Engine,  # noqa: ARG001
+    truncate_db: Engine,
     _db_ready: str,
 ) -> Iterator[None]:
     priv, pub = _write_keypair(tmp_path / "keys")
@@ -89,13 +88,13 @@ def configured_env(
 
 
 @pytest.fixture
-def app(configured_env) -> FastAPI:  # noqa: ARG001
+def app(configured_env) -> FastAPI:
     from gargantua.api.auth import router as auth_router
     from gargantua.api.me import router as me_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(me_router, prefix="/me")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(me_router, prefix="/api/me")
     return a
 
 
@@ -129,15 +128,11 @@ def seeded_admin(sync_session_maker) -> tuple[UUID, str]:
     from gargantua.auth.password import hash_password
 
     with sync_session_maker() as s:
-        u = User(
-            username="root", password_hash=hash_password("rootpw!1"), role="admin"
-        )
+        u = User(username="root", password_hash=hash_password("rootpw!1"), role="admin")
         s.add(u)
         s.commit()
         s.refresh(u)
-        return u.id, mint_access_token(
-            subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER]
-        )
+        return u.id, mint_access_token(subject=str(u.id), scopes=[SCOPE_ADMIN, SCOPE_USER])
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -156,7 +151,7 @@ def _seed_agent(
             mcp_server_ids=mcp_server_ids or [],
         )
         if archived:
-            a.archived_at = datetime.now(tz=timezone.utc)
+            a.archived_at = datetime.now(tz=UTC)
         session.add(a)
         session.commit()
         session.refresh(a)
@@ -179,7 +174,7 @@ def _seed_team(
             member_agent_ids=member_agent_ids or [],
         )
         if archived:
-            t.archived_at = datetime.now(tz=timezone.utc)
+            t.archived_at = datetime.now(tz=UTC)
         session.add(t)
         session.commit()
         session.refresh(t)
@@ -192,12 +187,12 @@ def _seed_team(
 
 
 def test_me_agents_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/me/agents")
+    r = client.get("/api/me/agents")
     assert r.status_code == 401
 
 
 def test_me_teams_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/me/teams")
+    r = client.get("/api/me/teams")
     assert r.status_code == 401
 
 
@@ -205,7 +200,7 @@ def test_me_agents_with_user_token_returns_200(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.get("/me/agents", headers=_auth(token))
+    r = client.get("/api/me/agents", headers=_auth(token))
     assert r.status_code == 200
     assert r.json() == {"items": [], "total": 0}
 
@@ -216,7 +211,7 @@ def test_me_agents_with_admin_token_also_returns_200(
     """Admins can hit the user-facing endpoint too (admin scope implies
     user access)."""
     _, token = seeded_admin
-    r = client.get("/me/agents", headers=_auth(token))
+    r = client.get("/api/me/agents", headers=_auth(token))
     assert r.status_code == 200
 
 
@@ -236,7 +231,7 @@ def test_me_agents_returns_only_non_archived(
     active = _seed_agent(sync_session_maker, name="active")
     _seed_agent(sync_session_maker, name="archived", archived=True)
 
-    r = client.get("/me/agents", headers=_auth(token))
+    r = client.get("/api/me/agents", headers=_auth(token))
     body = r.json()
     assert body["total"] == 1
     ids = [item["id"] for item in body["items"]]
@@ -255,7 +250,7 @@ def test_me_agents_response_shape_excludes_admin_fields(
     server_ids = [uuid4(), uuid4()]
     _seed_agent(sync_session_maker, name="planner", mcp_server_ids=server_ids)
 
-    r = client.get("/me/agents", headers=_auth(token))
+    r = client.get("/api/me/agents", headers=_auth(token))
     item = r.json()["items"][0]
 
     # Present:
@@ -289,8 +284,8 @@ def test_me_agents_returns_multiple_in_stable_order(
     for name in ("charlie", "alpha", "bravo"):
         _seed_agent(sync_session_maker, name=name)
 
-    r1 = client.get("/me/agents", headers=_auth(token))
-    r2 = client.get("/me/agents", headers=_auth(token))
+    r1 = client.get("/api/me/agents", headers=_auth(token))
+    r2 = client.get("/api/me/agents", headers=_auth(token))
     names1 = [item["name"] for item in r1.json()["items"]]
     names2 = [item["name"] for item in r2.json()["items"]]
     assert names1 == names2
@@ -310,12 +305,10 @@ def test_me_teams_returns_only_non_archived(
 ) -> None:
     _, token = seeded_user
     member = _seed_agent(sync_session_maker, name="m1")
-    active = _seed_team(
-        sync_session_maker, name="active-team", member_agent_ids=[member.id]
-    )
+    active = _seed_team(sync_session_maker, name="active-team", member_agent_ids=[member.id])
     _seed_team(sync_session_maker, name="archived-team", archived=True)
 
-    r = client.get("/me/teams", headers=_auth(token))
+    r = client.get("/api/me/teams", headers=_auth(token))
     body = r.json()
     assert body["total"] == 1
     assert body["items"][0]["id"] == str(active.id)
@@ -335,7 +328,7 @@ def test_me_teams_response_shape_excludes_admin_fields(
         member_agent_ids=[member.id],
     )
 
-    r = client.get("/me/teams", headers=_auth(token))
+    r = client.get("/api/me/teams", headers=_auth(token))
     item = r.json()["items"][0]
 
     assert item["name"] == "ops"
@@ -363,6 +356,6 @@ def test_me_teams_supports_all_three_modes(
     for mode in ("route", "coordinate", "collaborate"):
         _seed_team(sync_session_maker, name=f"t-{mode}", mode=mode)
 
-    body = client.get("/me/teams", headers=_auth(token)).json()
+    body = client.get("/api/me/teams", headers=_auth(token)).json()
     modes = {item["mode"] for item in body["items"]}
     assert modes == {"route", "coordinate", "collaborate"}

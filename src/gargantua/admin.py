@@ -19,9 +19,11 @@ or directly with ``python -m gargantua.admin <subcommand>``.
 from __future__ import annotations
 
 import base64
+import binascii
 import secrets
 import sys
 from pathlib import Path
+from typing import Any
 
 import typer
 from cryptography.hazmat.primitives import serialization
@@ -164,16 +166,14 @@ def rotate_kek(
         ...,
         "--from-key",
         help=(
-            "Base64-encoded current KEK (the one every stored secret is "
-            "presently encrypted under)."
+            "Base64-encoded current KEK (the one every stored secret is presently encrypted under)."
         ),
     ),
     to_key_b64: str = typer.Option(
         ...,
         "--to-key",
         help=(
-            "Base64-encoded new KEK.  Generate with "
-            "`gargantua-admin generate-master-key --raw`."
+            "Base64-encoded new KEK.  Generate with `gargantua-admin generate-master-key --raw`."
         ),
     ),
     dry_run: bool = typer.Option(
@@ -204,13 +204,13 @@ def rotate_kek(
     try:
         from_key = base64.b64decode(from_key_b64, validate=True)
         to_key = base64.b64decode(to_key_b64, validate=True)
-    except (ValueError, base64.binascii.Error) as exc:
+    except (ValueError, binascii.Error) as exc:
         typer.secho(
             f"Invalid base64 in --from-key or --to-key: {exc}",
             fg=typer.colors.RED,
             err=True,
         )
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from None
 
     if len(from_key) != 32 or len(to_key) != 32:
         typer.secho(
@@ -230,19 +230,17 @@ def rotate_kek(
 
     try:
         with _session() as s:
-            report = rotate_all_secrets(
-                s, from_key=from_key, to_key=to_key, dry_run=dry_run
-            )
+            report = rotate_all_secrets(s, from_key=from_key, to_key=to_key, dry_run=dry_run)
             if not dry_run:
                 s.commit()
             else:
                 s.rollback()
     except KekMismatch as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=3)
+        raise typer.Exit(code=3) from None
     except InvalidMasterKey as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=2)
+        raise typer.Exit(code=2) from None
 
     typer.echo("")
     typer.echo(str(report))
@@ -349,7 +347,7 @@ def seed_catalog(
     )
 
 
-def _collect_drifts(existing, spec: dict) -> dict:
+def _collect_drifts(existing: Any, spec: dict[str, Any]) -> dict[str, Any]:
     """Return only the spec fields that differ from the existing row.
 
     Used by ``--overwrite`` to write the smallest possible update,
@@ -375,7 +373,7 @@ def _collect_drifts(existing, spec: dict) -> dict:
     return drifts
 
 
-def _type_dict_for_audit(row) -> dict:
+def _type_dict_for_audit(row: Any) -> dict[str, Any]:
     """Mirror of the route-side audit projection but local to the CLI."""
     return {
         "id": str(row.id),

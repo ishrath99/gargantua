@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -29,7 +29,6 @@ from gargantua.mcp_cache import (
     MCPCache,
     ServerNotFound,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fakes
@@ -96,7 +95,8 @@ class FakeBackend:
             # apart visually.  Non-child-set tests still get the same
             # label they always did.
             label_with_children = (
-                label if not child_resource_ids
+                label
+                if not child_resource_ids
                 else f"{label}+children={sorted(child_resource_ids)}"
             )
             return FakeCloseable(label=label_with_children)
@@ -112,9 +112,7 @@ class FakeClock:
     long ``asyncio.sleep`` calls in the test body.
     """
 
-    now: datetime = field(
-        default_factory=lambda: datetime(2024, 1, 1, tzinfo=timezone.utc)
-    )
+    now: datetime = field(default_factory=lambda: datetime(2024, 1, 1, tzinfo=UTC))
 
     def __call__(self) -> datetime:
         return self.now
@@ -163,9 +161,7 @@ def cache(backend: FakeBackend, clock: FakeClock) -> MCPCache:
 # ---------------------------------------------------------------------------
 
 
-async def test_acquire_builds_and_caches(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_acquire_builds_and_caches(cache: MCPCache, backend: FakeBackend) -> None:
     sid = uuid4()
     backend.add(sid)
 
@@ -176,9 +172,7 @@ async def test_acquire_builds_and_caches(
     await lease.release()
 
 
-async def test_acquire_twice_returns_same_handle(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_acquire_twice_returns_same_handle(cache: MCPCache, backend: FakeBackend) -> None:
     sid = uuid4()
     backend.add(sid)
 
@@ -196,9 +190,7 @@ async def test_acquire_unknown_server_raises(cache: MCPCache) -> None:
         await cache.acquire(uuid4())
 
 
-async def test_release_keeps_handle_warm(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_release_keeps_handle_warm(cache: MCPCache, backend: FakeBackend) -> None:
     sid = uuid4()
     backend.add(sid)
 
@@ -214,9 +206,7 @@ async def test_release_keeps_handle_warm(
     await lease2.release()
 
 
-async def test_double_release_is_safe(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_double_release_is_safe(cache: MCPCache, backend: FakeBackend) -> None:
     sid = uuid4()
     backend.add(sid)
 
@@ -293,9 +283,7 @@ async def test_version_bump_with_active_lease_delays_close(
 # ---------------------------------------------------------------------------
 
 
-async def test_evict_closes_and_returns_true(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_evict_closes_and_returns_true(cache: MCPCache, backend: FakeBackend) -> None:
     sid = uuid4()
     backend.add(sid)
     lease = await cache.acquire(sid)
@@ -313,9 +301,7 @@ async def test_evict_uncached_returns_false(cache: MCPCache) -> None:
     assert await cache.evict(uuid4()) is False
 
 
-async def test_evict_while_held_still_closes(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_evict_while_held_still_closes(cache: MCPCache, backend: FakeBackend) -> None:
     """Evict is an admin override — the operator has decided this server
     is misbehaving and must be killed.  Close the handle even with
     outstanding leases.  Subsequent ``lease.release()`` calls become
@@ -357,9 +343,7 @@ async def test_acquire_after_evict_rebuilds_at_same_version(
 # ---------------------------------------------------------------------------
 
 
-async def test_reaper_closes_idle_entries(
-    backend: FakeBackend, clock: FakeClock
-) -> None:
+async def test_reaper_closes_idle_entries(backend: FakeBackend, clock: FakeClock) -> None:
     cache = _make_cache(backend, clock, idle_ttl=timedelta(seconds=30))
     sid = uuid4()
     backend.add(sid)
@@ -380,9 +364,7 @@ async def test_reaper_closes_idle_entries(
     assert cache.inspect() == []
 
 
-async def test_reaper_keeps_in_use_entries_alive(
-    backend: FakeBackend, clock: FakeClock
-) -> None:
+async def test_reaper_keeps_in_use_entries_alive(backend: FakeBackend, clock: FakeClock) -> None:
     cache = _make_cache(backend, clock, idle_ttl=timedelta(seconds=30))
     sid = uuid4()
     backend.add(sid)
@@ -406,9 +388,7 @@ async def test_reaper_keeps_in_use_entries_alive(
     await lease.release()  # no-op now; entry is gone
 
 
-async def test_reaper_keeps_recently_used_entries(
-    backend: FakeBackend, clock: FakeClock
-) -> None:
+async def test_reaper_keeps_recently_used_entries(backend: FakeBackend, clock: FakeClock) -> None:
     cache = _make_cache(backend, clock, idle_ttl=timedelta(seconds=30))
     sid = uuid4()
     backend.add(sid)
@@ -490,9 +470,7 @@ async def test_concurrent_acquire_different_keys_runs_in_parallel(
 # ---------------------------------------------------------------------------
 
 
-async def test_stop_closes_all_entries(
-    backend: FakeBackend, clock: FakeClock
-) -> None:
+async def test_stop_closes_all_entries(backend: FakeBackend, clock: FakeClock) -> None:
     cache = _make_cache(backend, clock)
     sid1, sid2 = uuid4(), uuid4()
     backend.add(sid1)
@@ -513,18 +491,14 @@ async def test_stop_closes_all_entries(
     await lease2.release()
 
 
-async def test_stop_is_idempotent(
-    backend: FakeBackend, clock: FakeClock
-) -> None:
+async def test_stop_is_idempotent(backend: FakeBackend, clock: FakeClock) -> None:
     cache = _make_cache(backend, clock)
     await cache.start()
     await cache.stop()
     await cache.stop()  # must not raise
 
 
-async def test_acquire_after_stop_raises(
-    backend: FakeBackend, clock: FakeClock
-) -> None:
+async def test_acquire_after_stop_raises(backend: FakeBackend, clock: FakeClock) -> None:
     cache = _make_cache(backend, clock)
     sid = uuid4()
     backend.add(sid)
@@ -541,9 +515,7 @@ async def test_acquire_after_stop_raises(
 # ---------------------------------------------------------------------------
 
 
-async def test_lease_context_manager(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_lease_context_manager(cache: MCPCache, backend: FakeBackend) -> None:
     sid = uuid4()
     backend.add(sid)
 
@@ -556,9 +528,7 @@ async def test_lease_context_manager(
     assert snap[0].ref_count == 0
 
 
-async def test_lease_releases_on_exception(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_lease_releases_on_exception(cache: MCPCache, backend: FakeBackend) -> None:
     sid = uuid4()
     backend.add(sid)
 
@@ -595,9 +565,7 @@ async def test_inspect_returns_snapshot_not_live_state(
     await lease.release()
 
 
-async def test_inspect_includes_orphans(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_inspect_includes_orphans(cache: MCPCache, backend: FakeBackend) -> None:
     """Orphaned (post-bump) entries with outstanding leases should be
     visible to the operator so a stuck lease can be debugged."""
     sid = uuid4()
@@ -649,9 +617,7 @@ async def test_acquire_with_different_child_sets_builds_separate_entries(
     snap = cache.inspect()
     # Compare as a set of (canonical) tuples so the assertion doesn't
     # depend on iteration order or UUID sort order.
-    children_seen = {
-        tuple(sorted(e.child_resource_ids)) for e in snap if e.server_id == sid
-    }
+    children_seen = {tuple(sorted(e.child_resource_ids)) for e in snap if e.server_id == sid}
     assert children_seen == {(child_a,), (child_b,)}
 
     await lease_a.release()
@@ -677,9 +643,7 @@ async def test_acquire_with_same_child_set_dedupes_within_lock(
     await b.release()
 
 
-async def test_child_resource_id_order_is_normalized(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_child_resource_id_order_is_normalized(cache: MCPCache, backend: FakeBackend) -> None:
     """``(c1, c2)`` and ``(c2, c1)`` are the *same* child set — the
     cache must hash to the same key regardless of the caller's order."""
     sid = uuid4()
@@ -715,9 +679,7 @@ async def test_acquire_with_no_child_set_is_distinct_from_with_children(
     await filtered.release()
 
 
-async def test_inspect_surfaces_child_resource_ids(
-    cache: MCPCache, backend: FakeBackend
-) -> None:
+async def test_inspect_surfaces_child_resource_ids(cache: MCPCache, backend: FakeBackend) -> None:
     """The admin /admin/mcp-cache snapshot has to be able to tell two
     entries for the same server apart by their child resource set."""
     sid = uuid4()
