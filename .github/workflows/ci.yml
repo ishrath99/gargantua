@@ -95,7 +95,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          # Pin a specific 9.x: floating to ``9`` picks up the latest
+          # release on every run, which has bit us before (e.g. the
+          # ``pnpm <script>`` shortcut forwarding the script name as
+          # a positional arg to the underlying command, breaking
+          # ``next lint``).  Bump deliberately, not opportunistically.
+          version: 9.12.3
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -104,15 +109,18 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Lint
-        run: pnpm lint
+        # ``pnpm run <script>`` (not ``pnpm <script>``) — the shortcut
+        # form has, in some pnpm 9.x releases, leaked the script name
+        # through as a positional arg, which breaks ``next lint``.
+        run: pnpm run lint
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm run typecheck
       - name: Vitest
-        run: pnpm test
+        run: pnpm run test
       - name: Install Playwright browsers
         run: pnpm exec playwright install --with-deps chromium
       - name: Playwright e2e
-        run: pnpm test:e2e
+        run: pnpm run test:e2e
 
   package-build:
     runs-on: ubuntu-latest

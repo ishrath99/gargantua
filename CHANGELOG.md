@@ -8,10 +8,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Auto-seed the MCP server type catalog on container boot.** The
+  entrypoint now runs `gargantua-admin seed-catalog` after the alembic
+  upgrade, so a fresh `docker compose up` lands the operator on a
+  populated `/admin/catalog/` instead of an empty page. The command is
+  idempotent by slug and costs ~50ms per boot. Opt out with
+  `SKIP_CATALOG_SEED=1` if you maintain the catalog out-of-band.
 - **Node 20 and `uv`/`uvx` in the runtime image** so the seeded
   `postgres-mcp` catalog entry and any community MCP server launched
   via `npx ...` (e.g. `@modelcontextprotocol/server-sequential-thinking`)
-  work out of the box. Image grows from ~250 MB to ~340 MB.
+  work out of the box. Image grows from ~410 MB to ~500 MB (Node + uv
+  add ~85 MB; the 0.1.0 baseline was understated as ~250 MB in
+  CHANGELOG and README — corrected here and in `README.md`).
 
 ### Changed
 

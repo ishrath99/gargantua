@@ -102,7 +102,8 @@ RUN pip install --upgrade pip wheel && pip install .
 # ``@modelcontextprotocol/server-sequential-thinking``) and ``uv``/``uvx``
 # (for Python-packaged servers like ``postgres-mcp``).  Without those
 # the ``stdio`` MCPs from the seeded catalog — and most third-party
-# tutorials — would fail at subprocess spawn.  Final image is ~340MB.
+# tutorials — would fail at subprocess spawn.  Final image is ~500MB
+# (Python venv with all deps is the dominant cost; Node + uv add ~85MB).
 FROM python:3.12-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

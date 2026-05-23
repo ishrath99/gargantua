@@ -55,7 +55,7 @@ CANONICAL_TYPES: Final[list[dict[str, Any]]] = [
         "default_args": ["postgres-mcp"],
         "config_schema": [
             {
-                "name": "DSN",
+                "name": "DATABASE_URI",
                 "label": "Connection string (postgresql://...)",
                 "type": "password",
                 "is_secret": True,
