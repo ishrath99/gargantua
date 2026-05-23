@@ -97,8 +97,12 @@ RUN pip install --upgrade pip wheel && pip install .
 # Stage 3 — Runtime image.
 # =============================================================================
 #
-# Slim Debian + system Python; no compilers, no node, no pnpm — that
-# whole 600+MB went away with the staging.  Final image is ~250MB.
+# Slim Debian + system Python plus the two MCP-launcher runtimes the
+# community has standardised on: Node 20 (for ``npx ...`` servers like
+# ``@modelcontextprotocol/server-sequential-thinking``) and ``uv``/``uvx``
+# (for Python-packaged servers like ``postgres-mcp``).  Without those
+# the ``stdio`` MCPs from the seeded catalog — and most third-party
+# tutorials — would fail at subprocess spawn.  Final image is ~340MB.
 FROM python:3.12-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -121,6 +125,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         tini \
         && rm -rf /var/lib/apt/lists/*
+
+# Node 20 for ``npx``-launched MCP servers.  We piggy-back on the same
+# multi-arch ``node:20-bookworm-slim`` image used by the UI build stage,
+# so the same binary that built the UI also runs MCP subprocesses — no
+# nodesource curl-pipe, no Debian-old Node 18.  ~55MB on the wire.
+COPY --from=node:20-bookworm-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:20-bookworm-slim /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# ``uv`` + ``uvx`` for Python-packaged MCP servers (``uvx postgres-mcp``
+# in the seed catalog, and the entire growing ecosystem of ``uvx``-based
+# tools).  Single static binary from the official Astral image; ~15MB.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 # Copy the prebuilt venv (gargantua + every transitive dep) and the
 # source tree.  The venv alone covers all imports at runtime; ``src/``

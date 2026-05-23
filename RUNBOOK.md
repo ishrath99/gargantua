@@ -205,6 +205,30 @@ can spin up — e.g. "stdio python script", "swagger adapter over HTTP".
 Each row carries a `mode` (`stdio` / `sse` / `streamable_http`), a
 `config_schema` describing required env_vars, and defaults.
 
+### Bundled launcher runtimes
+
+For `stdio` types the `default_command` must be something the runtime
+container can actually execute. The bundled image ships with three
+launchers on `PATH`:
+
+| Command | Use it for |
+|---|---|
+| `python` / `python3` | Anything installed into the app's venv (rare for MCP) |
+| `uvx` | Python-packaged MCP servers — `uvx postgres-mcp`, `uvx mcp-server-fetch`, ... |
+| `npx` | Node-packaged MCP servers — `npx -y @modelcontextprotocol/server-sequential-thinking`, ... |
+
+For `sse` / `streamable_http` types there is no command — the server
+runs out-of-process (a sidecar, a SaaS endpoint, your own service) and
+the agent just needs a URL it can reach. From inside the app container,
+`localhost` means *the container itself*; use `host.docker.internal`
+(or a docker-compose service name) to reach a server on the host or a
+sibling container.
+
+If you need a launcher that isn't on this list (e.g. `deno`, `bun`,
+`go run`), add it to the runtime stage in `Dockerfile` and rebuild
+the image. Don't bake credentials into the image; configure them via
+`config_schema` so they land in the encrypted `env_vars` column.
+
 Two ways to add one:
 
 **A — bundled seed (preferred for shared types).**  Edit

@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Node 20 and `uv`/`uvx` in the runtime image** so the seeded
+  `postgres-mcp` catalog entry and any community MCP server launched
+  via `npx ...` (e.g. `@modelcontextprotocol/server-sequential-thinking`)
+  work out of the box. Image grows from ~250 MB to ~340 MB.
+
+### Changed
+
+- **All JSON API routes moved under `/api/*`** to eliminate route
+  collisions with the bundled UI. Auth, admin, me, and runtime endpoints
+  are now at `/api/auth/*`, `/api/admin/*`, `/api/me/*`, `/api/v1/*`.
+  `/health` stays at the root for load-balancer probes. The UI, all
+  tests, the README and the RUNBOOK are updated to match; external
+  callers of the old paths must rewrite them.
+
 ## [0.1.0] — 2026-05-22
 
 Initial public release.
