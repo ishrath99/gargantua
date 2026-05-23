@@ -211,7 +211,9 @@ def test_refresh_with_valid_refresh_token_returns_new_pair(
     client: TestClient, sync_session_maker: sessionmaker
 ) -> None:
     _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
-    login = client.post("/api/auth/login", json={"username": "alice", "password": "hunter22!"}).json()
+    login = client.post(
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
+    ).json()
 
     # Sleep 1s so iat differs and the new access_token byte-string is distinct.
     time.sleep(1)
@@ -229,7 +231,9 @@ def test_refresh_with_access_token_returns_401(
     client: TestClient, sync_session_maker: sessionmaker
 ) -> None:
     _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
-    login = client.post("/api/auth/login", json={"username": "alice", "password": "hunter22!"}).json()
+    login = client.post(
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
+    ).json()
 
     # An access token must NOT be accepted on /refresh — only refresh tokens.
     r = client.post("/api/auth/refresh", json={"refresh_token": login["access_token"]})
@@ -245,7 +249,9 @@ def test_refresh_for_deleted_user_returns_401(
     client: TestClient, sync_session_maker: sessionmaker
 ) -> None:
     user = _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
-    login = client.post("/api/auth/login", json={"username": "alice", "password": "hunter22!"}).json()
+    login = client.post(
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
+    ).json()
 
     # Hard-delete the user out from under the still-valid refresh token.
     with sync_session_maker() as session:
@@ -261,7 +267,9 @@ def test_refresh_for_deactivated_user_returns_401(
 ) -> None:
     """Once the user is deactivated, *outstanding* refresh tokens must stop working."""
     user = _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
-    login = client.post("/api/auth/login", json={"username": "alice", "password": "hunter22!"}).json()
+    login = client.post(
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
+    ).json()
 
     with sync_session_maker() as s:
         row = s.get(User, user.id)
@@ -284,7 +292,9 @@ def test_me_requires_authentication(client: TestClient) -> None:
 
 def test_me_returns_user_payload(client: TestClient, sync_session_maker: sessionmaker) -> None:
     user = _seed_user(sync_session_maker, username="alice", password="hunter22!", role="user")
-    login = client.post("/api/auth/login", json={"username": "alice", "password": "hunter22!"}).json()
+    login = client.post(
+        "/api/auth/login", json={"username": "alice", "password": "hunter22!"}
+    ).json()
 
     r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {login['access_token']}"})
     assert r.status_code == 200, r.text

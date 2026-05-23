@@ -440,7 +440,9 @@ def test_archive_type_hides_from_default_list(
     assert body["total"] == 0
 
     # include_archived surfaces it.
-    body = client.get("/api/admin/mcp-server-types?include_archived=true", headers=_auth(token)).json()
+    body = client.get(
+        "/api/admin/mcp-server-types?include_archived=true", headers=_auth(token)
+    ).json()
     assert body["total"] == 1
 
     with sync_session_maker() as s:
