@@ -36,7 +36,7 @@ test.describe('login flow', () => {
   test('valid credentials -> tokens stored, redirected home', async ({ page }) => {
     let loginPayload: { username: string; password: string } | null = null;
 
-    await page.route(`${API}/auth/login`, async (route, request) => {
+    await page.route(`${API}/api/auth/login`, async (route, request) => {
       loginPayload = request.postDataJSON() as typeof loginPayload;
       await route.fulfill({
         status: 200,
@@ -45,7 +45,7 @@ test.describe('login flow', () => {
       });
     });
 
-    await page.route(`${API}/auth/me`, async (route) => {
+    await page.route(`${API}/api/auth/me`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -75,7 +75,7 @@ test.describe('login flow', () => {
   });
 
   test('wrong password -> inline error, stays on /login', async ({ page }) => {
-    await page.route(`${API}/auth/login`, async (route) => {
+    await page.route(`${API}/api/auth/login`, async (route) => {
       await route.fulfill({
         status: 401,
         contentType: 'application/json',
@@ -96,7 +96,7 @@ test.describe('login flow', () => {
 
   test('logout clears tokens and bounces to /login', async ({ page }) => {
     // Seed a logged-in session by stashing tokens before navigating.
-    await page.route(`${API}/auth/me`, async (route) => {
+    await page.route(`${API}/api/auth/me`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',

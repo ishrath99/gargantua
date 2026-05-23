@@ -65,21 +65,21 @@ function sseBody(events: Array<Record<string, unknown>>): string {
 
 test.describe('chat picker + agent surface', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route(`${API}/auth/me`, (route) =>
+    await page.route(`${API}/api/auth/me`, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(USER_ME),
       }),
     );
-    await page.route(`${API}/me/agents`, (route) =>
+    await page.route(`${API}/api/me/agents`, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ items: [AGENT], total: 1 }),
       }),
     );
-    await page.route(`${API}/me/teams`, (route) =>
+    await page.route(`${API}/api/me/teams`, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -99,7 +99,7 @@ test.describe('chat picker + agent surface', () => {
     let runPayload: Record<string, unknown> | null = null;
 
     await page.route(
-      new RegExp(`${API}/v1/agents/${AGENT.id}/runs/?`),
+      new RegExp(`${API}/api/v1/agents/${AGENT.id}/runs/?`),
       async (route, request) => {
         runPayload = request.postDataJSON() as Record<string, unknown>;
         await route.fulfill({
