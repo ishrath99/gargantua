@@ -8,7 +8,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
-<!-- TODO: add docs/img/admin-console.png screenshot of the chat UI + admin console -->
+<p align="center">
+  <a href="docs/img/admin-console.png">
+    <img src="docs/img/admin-console.png" alt="Gargantua admin console — agent, team, MCP server, and audit catalogs as DB rows" width="900">
+  </a>
+</p>
 
 Most agent frameworks are libraries: you write Python, you redeploy
 for every change. **Gargantua is the opposite.** Agents, teams, and
@@ -38,6 +42,31 @@ for day-2 ops procedures.
   static assets, served at `/` and `/admin/`.
 - **A real runbook** — KEK rotation, JWT rotation, stuck-cache recovery,
   lost-KEK recovery, backup / restore. See `RUNBOOK.md`.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%">
+      <a href="docs/img/chat.png"><img src="docs/img/chat.png" alt="Chat UI streaming an assistant response with a tool-call card" width="100%"></a>
+      <p align="center"><sub><b>Chat UI</b> — same image, same auth. Streaming SSE, tool-call cards, agent picker.</sub></p>
+    </td>
+    <td width="50%">
+      <a href="docs/img/admin-catalog.png"><img src="docs/img/admin-catalog.png" alt="Admin catalog listing MCP server types with mode and command columns" width="100%"></a>
+      <p align="center"><sub><b>MCP server type catalog</b> — typed, archivable, seedable. New types via the API or <code>catalog_seed.py</code>.</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <a href="docs/img/admin-mcp-cache.png"><img src="docs/img/admin-mcp-cache.png" alt="Admin MCP cache showing warm handles with holders, idle time, and tool counts" width="100%"></a>
+      <p align="center"><sub><b>Warm-handle cache inspector</b> — per-variant rows with <code>holders</code>, <code>idle_for</code>, <code>tool_count</code>. Force-evict from the UI or CLI.</sub></p>
+    </td>
+    <td width="50%">
+      <a href="docs/img/admin-console.png"><img src="docs/img/admin-console.png" alt="Admin console dashboard with section cards for users, agents, teams, servers, and audit" width="100%"></a>
+      <p align="center"><sub><b>Admin console</b> — one row per agent, team, server, user. Audit log captures every write.</sub></p>
+    </td>
+  </tr>
+</table>
 
 ## How it compares
 
