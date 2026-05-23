@@ -93,8 +93,8 @@ def app(configured_env) -> FastAPI:
     from gargantua.api.auth import router as auth_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(admin_router, prefix="/admin")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(admin_router, prefix="/api/admin")
     return a
 
 
@@ -185,14 +185,14 @@ def _child_body(**overrides) -> dict:
 
 
 def test_list_children_401(client: TestClient) -> None:
-    assert client.get(f"/admin/mcp-servers/{uuid4()}/child-resources").status_code == 401
+    assert client.get(f"/api/admin/mcp-servers/{uuid4()}/child-resources").status_code == 401
 
 
 def test_list_children_404_when_parent_missing(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get(f"/admin/mcp-servers/{uuid4()}/child-resources", headers=_auth(token))
+    r = client.get(f"/api/admin/mcp-servers/{uuid4()}/child-resources", headers=_auth(token))
     assert r.status_code == 404
 
 
@@ -209,7 +209,7 @@ def test_create_child_masks_headers_and_audits(
 ) -> None:
     admin_id, token = seeded_admin
     r = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=_child_body(),
         headers=_auth(token),
     )
@@ -236,7 +236,7 @@ def test_create_child_rejects_parent_without_swagger_support(
 ) -> None:
     _, token = seeded_admin
     r = client.post(
-        f"/admin/mcp-servers/{seeded_non_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_non_swagger_parent}/child-resources",
         json=_child_body(),
         headers=_auth(token),
     )
@@ -251,7 +251,7 @@ def test_create_child_rejects_invalid_type(
 ) -> None:
     _, token = seeded_admin
     r = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=_child_body(type="postman"),
         headers=_auth(token),
     )
@@ -266,13 +266,13 @@ def test_create_child_duplicate_name(
     _, token = seeded_admin
     body = _child_body()
     a = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=body,
         headers=_auth(token),
     )
     assert a.status_code == 201
     b = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=body,
         headers=_auth(token),
     )
@@ -291,22 +291,22 @@ def test_list_scoped_to_parent_and_excludes_disabled(
 ) -> None:
     _, token = seeded_admin
     a = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=_child_body(name="alpha"),
         headers=_auth(token),
     ).json()
     client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=_child_body(name="beta"),
         headers=_auth(token),
     )
     client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{a['id']}/disable",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{a['id']}/disable",
         headers=_auth(token),
     )
 
     r = client.get(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         headers=_auth(token),
     )
     assert r.status_code == 200
@@ -315,7 +315,7 @@ def test_list_scoped_to_parent_and_excludes_disabled(
     assert body["items"][0]["name"] == "beta"
 
     r = client.get(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources?include_disabled=true",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources?include_disabled=true",
         headers=_auth(token),
     )
     assert r.json()["total"] == 2
@@ -347,14 +347,14 @@ def test_get_child_404_when_not_under_this_parent(
         p2id = p2.id
 
     other = client.post(
-        f"/admin/mcp-servers/{p2id}/child-resources",
+        f"/api/admin/mcp-servers/{p2id}/child-resources",
         json=_child_body(),
         headers=_auth(token),
     ).json()
 
     # Querying the wrong parent — should 404.
     r = client.get(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{other['id']}",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{other['id']}",
         headers=_auth(token),
     )
     assert r.status_code == 404
@@ -372,13 +372,13 @@ def test_update_partial_preserves_headers(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=_child_body(),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}",
         json={"url": "https://example.com/new.json"},
         headers=_auth(token),
     )
@@ -396,13 +396,13 @@ def test_update_headers_audit_excludes_plaintext(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=_child_body(),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}",
         json={"headers": {"Authorization": "Bearer rotated-token"}},
         headers=_auth(token),
     )
@@ -431,20 +431,20 @@ def test_enable_disable_round_trip(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=_child_body(),
         headers=_auth(token),
     ).json()
 
     r = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}/disable",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}/disable",
         headers=_auth(token),
     )
     assert r.status_code == 200
     assert r.json()["enabled"] is False
 
     r = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}/enable",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}/enable",
         headers=_auth(token),
     )
     assert r.status_code == 200
@@ -459,16 +459,16 @@ def test_disable_idempotent_writes_one_audit(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources",
         json=_child_body(),
         headers=_auth(token),
     ).json()
     client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}/disable",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}/disable",
         headers=_auth(token),
     )
     client.post(
-        f"/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}/disable",
+        f"/api/admin/mcp-servers/{seeded_swagger_parent}/child-resources/{created['id']}/disable",
         headers=_auth(token),
     )
     with sync_session_maker() as s:

@@ -66,7 +66,7 @@ Verify:
 
 ```bash
 curl -s http://localhost:7777/health | jq .
-curl -s -X POST http://localhost:7777/auth/login \
+curl -s -X POST http://localhost:7777/api/auth/login \
     -H 'content-type: application/json' \
     -d "{\"username\":\"$BOOTSTRAP_ADMIN_USERNAME\",\"password\":\"$BOOTSTRAP_ADMIN_PASSWORD\"}" \
     | jq .access_token
@@ -217,7 +217,7 @@ gets the type by default.
 
 ```bash
 TOKEN=...   # admin token from /auth/login
-curl -s -X POST http://localhost:7777/admin/mcp-server-types \
+curl -s -X POST http://localhost:7777/api/admin/mcp-server-types \
     -H "authorization: bearer $TOKEN" \
     -H 'content-type: application/json' \
     -d '{
@@ -252,10 +252,10 @@ A *server* is an instance of a type with concrete secrets and arguments.
 ```bash
 # Find the type_id you want.
 curl -s -H "authorization: bearer $TOKEN" \
-    http://localhost:7777/admin/mcp-server-types | jq '.items[] | {id, slug}'
+    http://localhost:7777/api/admin/mcp-server-types | jq '.items[] | {id, slug}'
 
 # Create the instance.  env_vars are encrypted at rest under the KEK.
-curl -s -X POST http://localhost:7777/admin/mcp-servers \
+curl -s -X POST http://localhost:7777/api/admin/mcp-servers \
     -H "authorization: bearer $TOKEN" \
     -H 'content-type: application/json' \
     -d '{
@@ -291,11 +291,11 @@ get their own warm handle and tool surface.
 ```bash
 # List existing children for a server.
 curl -s -H "authorization: bearer $TOKEN" \
-    http://localhost:7777/admin/mcp-servers/<sid>/child-resources
+    http://localhost:7777/api/admin/mcp-servers/<sid>/child-resources
 
 # Create a swagger child.  ``headers`` is encrypted alongside the
 # parent's env_vars.
-curl -s -X POST http://localhost:7777/admin/mcp-servers/<sid>/child-resources \
+curl -s -X POST http://localhost:7777/api/admin/mcp-servers/<sid>/child-resources \
     -H "authorization: bearer $TOKEN" \
     -H 'content-type: application/json' \
     -d '{
@@ -309,7 +309,7 @@ curl -s -X POST http://localhost:7777/admin/mcp-servers/<sid>/child-resources \
 # will skip it at run time (the route silently drops disabled
 # children with a warning log).
 curl -s -X POST -H "authorization: bearer $TOKEN" \
-    http://localhost:7777/admin/mcp-servers/<sid>/child-resources/<cid>/disable
+    http://localhost:7777/api/admin/mcp-servers/<sid>/child-resources/<cid>/disable
 ```
 
 At run time, the MCP server receives the enabled child set as either:
@@ -331,10 +331,10 @@ Agents and teams are config; both carry `mcp_server_ids`,
 ```bash
 # Optional: list bundled templates for inspiration.
 curl -s -H "authorization: bearer $TOKEN" \
-    http://localhost:7777/admin/agent-templates
+    http://localhost:7777/api/admin/agent-templates
 
 # Create an agent.
-curl -s -X POST http://localhost:7777/admin/agents \
+curl -s -X POST http://localhost:7777/api/admin/agents \
     -H "authorization: bearer $TOKEN" \
     -H 'content-type: application/json' \
     -d '{
@@ -361,13 +361,13 @@ To run:
 
 ```bash
 # Streaming run (SSE).
-curl -N -X POST http://localhost:7777/v1/agents/<agent_id>/runs \
+curl -N -X POST http://localhost:7777/api/v1/agents/<agent_id>/runs \
     -H "authorization: bearer $TOKEN" \
     -H 'content-type: application/json' \
     -d '{"input": "what failed in the last deploy?", "stream": true}'
 
 # Non-streaming.
-curl -s -X POST http://localhost:7777/v1/agents/<agent_id>/runs \
+curl -s -X POST http://localhost:7777/api/v1/agents/<agent_id>/runs \
     -H "authorization: bearer $TOKEN" \
     -H 'content-type: application/json' \
     -d '{"input": "..."}'
@@ -390,7 +390,7 @@ Diagnostic flow:
 ```bash
 # (a) Snapshot.  Each entry is one (server_id, child_resource_ids) variant.
 curl -s -H "authorization: bearer $TOKEN" \
-    http://localhost:7777/admin/mcp-cache | jq .
+    http://localhost:7777/api/admin/mcp-cache | jq .
 
 # Fields per entry:
 #   server_id          which MCP server
@@ -409,7 +409,7 @@ curl -s -H "authorization: bearer $TOKEN" \
 #     lease will see its tool handle disappear and likely 5xx; only
 #     evict an entry whose holders are genuinely stuck.
 curl -s -X POST -H "authorization: bearer $TOKEN" \
-    http://localhost:7777/admin/mcp-cache/<server_id>/evict
+    http://localhost:7777/api/admin/mcp-cache/<server_id>/evict
 ```
 
 Evicting a server clears **every** child-set variant for that
@@ -436,11 +436,11 @@ the `audit_log` table.  Read via:
 ```bash
 # Recent events, paginated.
 curl -s -H "authorization: bearer $TOKEN" \
-    "http://localhost:7777/admin/audit?page=1&page_size=50" | jq .
+    "http://localhost:7777/api/admin/audit?page=1&page_size=50" | jq .
 
 # Filter.
 curl -s -H "authorization: bearer $TOKEN" \
-    "http://localhost:7777/admin/audit?actor_id=<uid>&action=update_server" | jq .
+    "http://localhost:7777/api/admin/audit?actor_id=<uid>&action=update_server" | jq .
 
 # Same surface from the CLI (no need to mint a token).
 gargantua-admin audit list --actor-id <uid>

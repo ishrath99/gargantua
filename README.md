@@ -14,7 +14,7 @@ Most agent frameworks are libraries: you write Python, you redeploy
 for every change. **Gargantua is the opposite.** Agents, teams, and
 the MCP servers they call are rows in Postgres. Admins curate them
 through a web console; users chat with them through the same UI or
-hit `POST /v1/agents/{id}/runs` directly.
+hit `POST /api/v1/agents/{id}/runs` directly.
 
 It's what you'd build if you wanted to give a hundred internal users
 safe, governed access to LLM agents over **your** MCP servers, and
@@ -33,7 +33,7 @@ for day-2 ops procedures.
   KEK, with a documented rotation path that doesn't require downtime.
 - **RS256 JWT auth, RBAC, audit log, bootstrap admin** — all the
   multi-tenant plumbing you'd otherwise rebuild.
-- **Streaming runs** — SSE under `/v1/agents/{id}/runs` (and teams).
+- **Streaming runs** — SSE under `/api/v1/agents/{id}/runs` (and teams).
 - **A real UI** — Next.js admin + chat, baked into the same container as
   static assets, served at `/` and `/admin/`.
 - **A real runbook** — KEK rotation, JWT rotation, stuck-cache recovery,
@@ -101,7 +101,7 @@ Sanity check the boot:
 
 ```bash
 curl -s http://localhost:7777/health
-curl -s -X POST http://localhost:7777/auth/login \
+curl -s -X POST http://localhost:7777/api/auth/login \
     -H 'content-type: application/json' \
     -d '{"username":"<bootstrap-username>","password":"<bootstrap-password>"}'
 ```
@@ -197,11 +197,11 @@ src/gargantua/
     crypto/            KEK loader + AES-GCM envelope encrypt/decrypt
     repo/              Plain functions: one module per table, sync + async
     api/
-        auth.py        /auth/login, /auth/refresh, /auth/me
-        admin.py       /admin/* (users, audit, catalog, servers, children,
+        auth.py        /api/auth/login, /api/auth/refresh, /api/auth/me
+        admin.py       /api/admin/* (users, audit, catalog, servers, children,
                        agents, teams, mcp-cache, agent-templates)
-        me.py          /me/agents, /me/teams (non-admin caller's accessible set)
-        runs.py        POST /v1/agents/{id}/runs, POST /v1/teams/{id}/runs
+        me.py          /api/me/agents, /api/me/teams (non-admin caller's accessible set)
+        runs.py        POST /api/v1/agents/{id}/runs, POST /api/v1/teams/{id}/runs
         schemas.py     Pydantic in/out models for the whole HTTP surface
     mcp_cache.py       Warm-handle cache: ref-count, idle reaper, version bumps
     mcp_tools.py       ToolsBuilder — turns DB rows into agno.tools.mcp.MCPTools
@@ -248,69 +248,73 @@ handle, etc.), see `RUNBOOK.md`.
 
 ## HTTP surface (cheat-sheet)
 
-Mounted under FastAPI root; AgentOS sub-app is mounted at `/v1`.
+Mounted under FastAPI root; AgentOS sub-app is mounted at `/api/v1`.
+
+Every JSON API lives under `/api/*`; the UI is served at the root
+(`/`, `/login`, `/admin/...`).  `/health` stays at the root for load
+balancers and k8s probes.
 
 ```
 # Auth (open)
-POST   /auth/login                       username + password → token pair
-POST   /auth/refresh                     refresh_token       → new token pair
-GET    /auth/me                          claims              → caller projection
+POST   /api/auth/login                   username + password → token pair
+POST   /api/auth/refresh                 refresh_token       → new token pair
+GET    /api/auth/me                      claims              → caller projection
 
 # User self-service (SCOPE_USER)
-GET    /me/agents                        list non-archived agents accessible to caller
-GET    /me/teams                         list non-archived teams accessible to caller
+GET    /api/me/agents                    list non-archived agents accessible to caller
+GET    /api/me/teams                     list non-archived teams accessible to caller
 
-# Runtime (SCOPE_USER) — these are AgentOS-mounted under /v1
-POST   /v1/agents/{agent_id}/runs        run an agent; stream=true → SSE
-POST   /v1/teams/{team_id}/runs          run a team; stream=true → SSE
+# Runtime (SCOPE_USER) — these are AgentOS-mounted under /api/v1
+POST   /api/v1/agents/{agent_id}/runs    run an agent; stream=true → SSE
+POST   /api/v1/teams/{team_id}/runs      run a team; stream=true → SSE
 
-# Admin (SCOPE_ADMIN) — all under /admin
-GET    /admin/users
-POST   /admin/users
-GET    /admin/users/{id}
-PATCH  /admin/users/{id}/role
-POST   /admin/users/{id}/deactivate
-POST   /admin/users/{id}/activate
+# Admin (SCOPE_ADMIN) — all under /api/admin
+GET    /api/admin/users
+POST   /api/admin/users
+GET    /api/admin/users/{id}
+PATCH  /api/admin/users/{id}/role
+POST   /api/admin/users/{id}/deactivate
+POST   /api/admin/users/{id}/activate
 
-GET    /admin/audit
-GET    /admin/audit/{id}
+GET    /api/admin/audit
+GET    /api/admin/audit/{id}
 
-GET    /admin/mcp-server-types
-POST   /admin/mcp-server-types
-GET    /admin/mcp-server-types/{id}
-PATCH  /admin/mcp-server-types/{id}
-POST   /admin/mcp-server-types/{id}/archive
-POST   /admin/mcp-server-types/{id}/unarchive
+GET    /api/admin/mcp-server-types
+POST   /api/admin/mcp-server-types
+GET    /api/admin/mcp-server-types/{id}
+PATCH  /api/admin/mcp-server-types/{id}
+POST   /api/admin/mcp-server-types/{id}/archive
+POST   /api/admin/mcp-server-types/{id}/unarchive
 
-GET    /admin/mcp-servers
-POST   /admin/mcp-servers
-GET    /admin/mcp-servers/{id}
-PATCH  /admin/mcp-servers/{id}
-POST   /admin/mcp-servers/{id}/archive
-POST   /admin/mcp-servers/{id}/unarchive
+GET    /api/admin/mcp-servers
+POST   /api/admin/mcp-servers
+GET    /api/admin/mcp-servers/{id}
+PATCH  /api/admin/mcp-servers/{id}
+POST   /api/admin/mcp-servers/{id}/archive
+POST   /api/admin/mcp-servers/{id}/unarchive
 
-GET    /admin/mcp-servers/{id}/child-resources
-POST   /admin/mcp-servers/{id}/child-resources
-GET    /admin/mcp-servers/{id}/child-resources/{cid}
-PATCH  /admin/mcp-servers/{id}/child-resources/{cid}
-POST   /admin/mcp-servers/{id}/child-resources/{cid}/enable
-POST   /admin/mcp-servers/{id}/child-resources/{cid}/disable
+GET    /api/admin/mcp-servers/{id}/child-resources
+POST   /api/admin/mcp-servers/{id}/child-resources
+GET    /api/admin/mcp-servers/{id}/child-resources/{cid}
+PATCH  /api/admin/mcp-servers/{id}/child-resources/{cid}
+POST   /api/admin/mcp-servers/{id}/child-resources/{cid}/enable
+POST   /api/admin/mcp-servers/{id}/child-resources/{cid}/disable
 
-GET    /admin/agents
-POST   /admin/agents
-GET    /admin/agents/{id}
-PATCH  /admin/agents/{id}
-POST   /admin/agents/{id}/archive
-POST   /admin/agents/{id}/unarchive
+GET    /api/admin/agents
+POST   /api/admin/agents
+GET    /api/admin/agents/{id}
+PATCH  /api/admin/agents/{id}
+POST   /api/admin/agents/{id}/archive
+POST   /api/admin/agents/{id}/unarchive
 
-GET    /admin/teams                      (CRUD analogous to agents)
+GET    /api/admin/teams                  (CRUD analogous to agents)
 
-GET    /admin/mcp-cache                  warm-handle inspector (lists every
+GET    /api/admin/mcp-cache              warm-handle inspector (lists every
                                          server×child-set variant separately)
-POST   /admin/mcp-cache/{server_id}/evict   force-evict every variant of a server
+POST   /api/admin/mcp-cache/{server_id}/evict   force-evict every variant of a server
 
-GET    /admin/agent-templates            list bundled markdown templates
-GET    /admin/agent-templates/{slug}     one template's full body
+GET    /api/admin/agent-templates        list bundled markdown templates
+GET    /api/admin/agent-templates/{slug} one template's full body
 ```
 
 OpenAPI is auto-published at `/docs` (Swagger) and `/redoc`; that's the

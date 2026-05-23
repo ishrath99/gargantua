@@ -83,8 +83,8 @@ def app(configured_env) -> FastAPI:
     from gargantua.api.auth import router as auth_router
 
     app = FastAPI()
-    app.include_router(auth_router, prefix="/auth")
-    app.include_router(admin_router, prefix="/admin")
+    app.include_router(auth_router, prefix="/api/auth")
+    app.include_router(admin_router, prefix="/api/admin")
     return app
 
 
@@ -145,12 +145,12 @@ def _seed_audit_rows(client: TestClient, token: str) -> tuple[UUID, UUID]:
     Returns ``(first_user_id, second_user_id)``.
     """
     r1 = client.post(
-        "/admin/users",
+        "/api/admin/users",
         json={"username": "u1", "password": "longpassword1", "role": "user"},
         headers=_auth(token),
     )
     r2 = client.post(
-        "/admin/users",
+        "/api/admin/users",
         json={"username": "u2", "password": "longpassword2", "role": "user"},
         headers=_auth(token),
     )
@@ -164,7 +164,7 @@ def _seed_audit_rows(client: TestClient, token: str) -> tuple[UUID, UUID]:
 
 
 def test_list_audit_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/admin/audit")
+    r = client.get("/api/admin/audit")
     assert r.status_code == 401
 
 
@@ -172,7 +172,7 @@ def test_list_audit_with_user_token_returns_403(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.get("/admin/audit", headers=_auth(token))
+    r = client.get("/api/admin/audit", headers=_auth(token))
     assert r.status_code == 403
 
 
@@ -180,7 +180,7 @@ def test_list_audit_with_admin_token_returns_200(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/audit", headers=_auth(token))
+    r = client.get("/api/admin/audit", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
     assert body["total"] == 0
@@ -196,7 +196,7 @@ def test_list_audit_newest_first(client: TestClient, seeded_admin: tuple[UUID, s
     _, token = seeded_admin
     first, second = _seed_audit_rows(client, token)
 
-    r = client.get("/admin/audit", headers=_auth(token))
+    r = client.get("/api/admin/audit", headers=_auth(token))
     body = r.json()
     assert body["total"] == 2
     # Most recent (the second create) shows up first.
@@ -209,9 +209,9 @@ def test_list_audit_filters_by_action(client: TestClient, seeded_admin: tuple[UU
     first, _ = _seed_audit_rows(client, token)
 
     # Demote first user to admin then back to user so we get a role_update entry.
-    client.patch(f"/admin/users/{first}/role", json={"role": "user"}, headers=_auth(token))
+    client.patch(f"/api/admin/users/{first}/role", json={"role": "user"}, headers=_auth(token))
 
-    r = client.get("/admin/audit?action=user.create", headers=_auth(token))
+    r = client.get("/api/admin/audit?action=user.create", headers=_auth(token))
     body = r.json()
     assert body["total"] == 2
     assert all(item["action"] == "user.create" for item in body["items"])
@@ -222,9 +222,9 @@ def test_list_audit_filters_by_target(client: TestClient, seeded_admin: tuple[UU
     first, _ = _seed_audit_rows(client, token)
 
     # Promote first user — gives that target_id a second audit entry.
-    client.patch(f"/admin/users/{first}/role", json={"role": "admin"}, headers=_auth(token))
+    client.patch(f"/api/admin/users/{first}/role", json={"role": "admin"}, headers=_auth(token))
 
-    r = client.get(f"/admin/audit?target_type=user&target_id={first}", headers=_auth(token))
+    r = client.get(f"/api/admin/audit?target_type=user&target_id={first}", headers=_auth(token))
     body = r.json()
     assert body["total"] == 2
     assert all(item["target_id"] == str(first) for item in body["items"])
@@ -256,15 +256,15 @@ def test_list_audit_filters_by_actor(
         other_id = other.id
 
     client.post(
-        "/admin/users",
+        "/api/admin/users",
         json={"username": "u3", "password": "longpassword3", "role": "user"},
         headers=_auth(other_token),
     )
 
-    r = client.get(f"/admin/audit?actor_id={admin_id}", headers=_auth(token))
+    r = client.get(f"/api/admin/audit?actor_id={admin_id}", headers=_auth(token))
     assert r.json()["total"] == 2
 
-    r = client.get(f"/admin/audit?actor_id={other_id}", headers=_auth(token))
+    r = client.get(f"/api/admin/audit?actor_id={other_id}", headers=_auth(token))
     body = r.json()
     assert body["total"] == 1
     assert body["items"][0]["actor_id"] == str(other_id)
@@ -275,7 +275,7 @@ def test_list_audit_paginates(client: TestClient, seeded_admin: tuple[UUID, str]
     # Create 5 users → 5 audit rows.
     for i in range(5):
         client.post(
-            "/admin/users",
+            "/api/admin/users",
             json={
                 "username": f"u{i}",
                 "password": "longpassword1",
@@ -284,12 +284,12 @@ def test_list_audit_paginates(client: TestClient, seeded_admin: tuple[UUID, str]
             headers=_auth(token),
         )
 
-    r = client.get("/admin/audit?page=1&page_size=2", headers=_auth(token))
+    r = client.get("/api/admin/audit?page=1&page_size=2", headers=_auth(token))
     body = r.json()
     assert body["total"] == 5
     assert len(body["items"]) == 2
 
-    r = client.get("/admin/audit?page=3&page_size=2", headers=_auth(token))
+    r = client.get("/api/admin/audit?page=3&page_size=2", headers=_auth(token))
     body = r.json()
     assert body["total"] == 5
     assert len(body["items"]) == 1
@@ -307,10 +307,10 @@ def test_get_audit_entry_returns_full_diff(
     first, _ = _seed_audit_rows(client, token)
 
     # Find the audit row id via the list endpoint.
-    list_body = client.get("/admin/audit", headers=_auth(token)).json()
+    list_body = client.get("/api/admin/audit", headers=_auth(token)).json()
     entry_id = next(row["id"] for row in list_body["items"] if row["target_id"] == str(first))
 
-    r = client.get(f"/admin/audit/{entry_id}", headers=_auth(token))
+    r = client.get(f"/api/admin/audit/{entry_id}", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
     assert body["action"] == "user.create"
@@ -326,13 +326,13 @@ def test_get_audit_entry_404_when_missing(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/audit/999999", headers=_auth(token))
+    r = client.get("/api/admin/audit/999999", headers=_auth(token))
     assert r.status_code == 404
 
 
 def test_get_audit_entry_requires_admin(client: TestClient, seeded_user: tuple[UUID, str]) -> None:
     _, token = seeded_user
-    r = client.get("/admin/audit/1", headers=_auth(token))
+    r = client.get("/api/admin/audit/1", headers=_auth(token))
     # 403 (forbidden) takes precedence over 404 since require_admin runs
     # before the handler that would surface the missing row.
     assert r.status_code == 403

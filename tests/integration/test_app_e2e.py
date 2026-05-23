@@ -81,13 +81,13 @@ def test_full_bootstrap_login_me_flow(
         assert r.json()["status"] == "ok"
 
         # 2. login with the bootstrapped admin credentials
-        r = client.post("/auth/login", json={"username": "root", "password": "rootpw!1"})
+        r = client.post("/api/auth/login", json={"username": "root", "password": "rootpw!1"})
         assert r.status_code == 200, r.text
         tokens_pair = r.json()
         access = tokens_pair["access_token"]
 
         # 3. /auth/me echoes the admin row
-        r = client.get("/auth/me", headers={"Authorization": f"Bearer {access}"})
+        r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {access}"})
         assert r.status_code == 200, r.text
         me = r.json()
         assert me["username"] == "root"

@@ -92,8 +92,8 @@ def app(configured_env) -> FastAPI:
     from gargantua.api.auth import router as auth_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(admin_router, prefix="/admin")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(admin_router, prefix="/api/admin")
     return a
 
 
@@ -154,7 +154,7 @@ _EXPECTED_SLUGS = {
 
 
 def test_list_templates_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/admin/agent-templates")
+    r = client.get("/api/admin/agent-templates")
     assert r.status_code == 401
 
 
@@ -164,12 +164,12 @@ def test_list_templates_with_user_token_returns_403(
     """User-only tokens can't see the template catalog — it's an
     admin-only flow (only admins create agents)."""
     _, token = seeded_user
-    r = client.get("/admin/agent-templates", headers=_auth(token))
+    r = client.get("/api/admin/agent-templates", headers=_auth(token))
     assert r.status_code == 403
 
 
 def test_get_template_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/admin/agent-templates/db-investigator")
+    r = client.get("/api/admin/agent-templates/db-investigator")
     assert r.status_code == 401
 
 
@@ -177,7 +177,7 @@ def test_get_template_with_user_token_returns_403(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.get("/admin/agent-templates/db-investigator", headers=_auth(token))
+    r = client.get("/api/admin/agent-templates/db-investigator", headers=_auth(token))
     assert r.status_code == 403
 
 
@@ -190,7 +190,7 @@ def test_list_templates_returns_shipped_seeds(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/agent-templates", headers=_auth(token))
+    r = client.get("/api/admin/agent-templates", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
     slugs = {item["slug"] for item in body["items"]}
@@ -205,7 +205,7 @@ def test_list_templates_response_shape(client: TestClient, seeded_admin: tuple[U
     including ``instructions`` (yes, even in the list — the catalog
     is small enough that one request is cheaper than N round-trips)."""
     _, token = seeded_admin
-    r = client.get("/admin/agent-templates", headers=_auth(token))
+    r = client.get("/api/admin/agent-templates", headers=_auth(token))
     body = r.json()
     for item in body["items"]:
         for key in (
@@ -226,7 +226,7 @@ def test_list_templates_is_sorted_by_slug(
     """Stable order is part of the contract: the UI lists templates in
     response order and operators expect alphabetical."""
     _, token = seeded_admin
-    body = client.get("/admin/agent-templates", headers=_auth(token)).json()
+    body = client.get("/api/admin/agent-templates", headers=_auth(token)).json()
     slugs = [item["slug"] for item in body["items"]]
     assert slugs == sorted(slugs)
 
@@ -240,7 +240,7 @@ def test_get_template_by_slug_returns_full_body(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/agent-templates/db-investigator", headers=_auth(token))
+    r = client.get("/api/admin/agent-templates/db-investigator", headers=_auth(token))
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["slug"] == "db-investigator"
@@ -256,5 +256,5 @@ def test_get_template_unknown_slug_returns_404(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/agent-templates/no-such-template", headers=_auth(token))
+    r = client.get("/api/admin/agent-templates/no-such-template", headers=_auth(token))
     assert r.status_code == 404

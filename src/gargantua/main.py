@@ -121,16 +121,19 @@ def create_app() -> FastAPI:
             allow_headers=["*"],
         )
 
-    app.include_router(auth_router, prefix="/auth", tags=["auth"])
-    app.include_router(admin_router, prefix="/admin", tags=["admin"])
-    app.include_router(me_router, prefix="/me", tags=["me"])
+    # Every JSON API lives under /api/* so it can't collide with UI page
+    # routes served by the static mount below.  /health stays at the root
+    # because load balancers and k8s probes look for it there by convention.
+    app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+    app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+    app.include_router(me_router, prefix="/api/me", tags=["me"])
 
-    # AgentOS lives under /v1 — its own JWT middleware gates every route,
-    # leaving /auth/* and /health unprotected on the parent app.
+    # AgentOS lives under /api/v1 — its own JWT middleware gates every
+    # route, leaving /api/auth/* and /health unprotected on the parent app.
     #
     # If the JWT public key isn't on disk (typical for unit tests, also for
     # a container booted before the secret volume is mounted), skip the
-    # mount.  /health stays useful for liveness checks; /auth/* returns
+    # mount.  /health stays useful for liveness checks; /api/auth/* returns
     # clearer errors at first use.
     if settings.jwt_public_key_path.exists():
         # Shared :class:`PostgresDb` so sessions / runs persisted by our
@@ -146,14 +149,14 @@ def create_app() -> FastAPI:
         app.state.agno_db = agno_db
 
         # Register our agent-run route override BEFORE mounting AgentOS at
-        # ``/v1``.  Starlette checks routes in registration order, so our
-        # specific ``/v1/agents/{agent_id}/runs`` matches before the mount
-        # falls through to Agno's same-path route.
-        app.include_router(runs_router, prefix="/v1", tags=["runs"])
-        app.mount("/v1", build_agent_os_app(settings, agno_db=agno_db))
+        # ``/api/v1``.  Starlette checks routes in registration order, so
+        # our specific ``/api/v1/agents/{agent_id}/runs`` matches before
+        # the mount falls through to Agno's same-path route.
+        app.include_router(runs_router, prefix="/api/v1", tags=["runs"])
+        app.mount("/api/v1", build_agent_os_app(settings, agno_db=agno_db))
     else:
         logger.warning(
-            "JWT public key not found at %s; /v1/* (AgentOS) routes not mounted. "
+            "JWT public key not found at %s; /api/v1/* (AgentOS) routes not mounted. "
             "Set JWT_PUBLIC_KEY_PATH and restart to enable AgentOS.",
             settings.jwt_public_key_path,
         )

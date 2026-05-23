@@ -96,8 +96,8 @@ def app(configured_env) -> FastAPI:
     from gargantua.api.auth import router as auth_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(admin_router, prefix="/admin")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(admin_router, prefix="/api/admin")
     return a
 
 
@@ -188,7 +188,7 @@ def _minimal_create_body(name: str = "researcher") -> dict:
 
 
 def test_list_agents_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/admin/agents")
+    r = client.get("/api/admin/agents")
     assert r.status_code == 401
 
 
@@ -196,7 +196,7 @@ def test_list_agents_with_user_token_returns_403(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.get("/admin/agents", headers=_auth(token))
+    r = client.get("/api/admin/agents", headers=_auth(token))
     assert r.status_code == 403
 
 
@@ -204,7 +204,7 @@ def test_list_agents_with_admin_token_returns_200(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/agents", headers=_auth(token))
+    r = client.get("/api/admin/agents", headers=_auth(token))
     assert r.status_code == 200
     assert r.json() == {"items": [], "total": 0, "page": 1, "page_size": 50}
 
@@ -221,7 +221,7 @@ def test_create_agent_201_and_audit_logged(
 ) -> None:
     admin_id, token = seeded_admin
     r = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body(),
         headers=_auth(token),
     )
@@ -254,7 +254,7 @@ def test_create_agent_with_refs(
     body = _minimal_create_body()
     body["mcp_server_ids"] = [str(mcp_refs["server_id"])]
     body["child_resource_ids"] = [str(mcp_refs["child_id"])]
-    r = client.post("/admin/agents", json=body, headers=_auth(token))
+    r = client.post("/api/admin/agents", json=body, headers=_auth(token))
     assert r.status_code == 201, r.text
     created = r.json()
     assert created["mcp_server_ids"] == [str(mcp_refs["server_id"])]
@@ -266,9 +266,9 @@ def test_create_agent_rejects_duplicate_name(
 ) -> None:
     _, token = seeded_admin
     body = _minimal_create_body()
-    r1 = client.post("/admin/agents", json=body, headers=_auth(token))
+    r1 = client.post("/api/admin/agents", json=body, headers=_auth(token))
     assert r1.status_code == 201
-    r2 = client.post("/admin/agents", json=body, headers=_auth(token))
+    r2 = client.post("/api/admin/agents", json=body, headers=_auth(token))
     assert r2.status_code == 409
 
 
@@ -278,7 +278,7 @@ def test_create_agent_rejects_missing_mcp_server(
     _, token = seeded_admin
     body = _minimal_create_body()
     body["mcp_server_ids"] = [str(uuid4())]
-    r = client.post("/admin/agents", json=body, headers=_auth(token))
+    r = client.post("/api/admin/agents", json=body, headers=_auth(token))
     assert r.status_code == 422
     detail = r.json()["detail"]
     # Detail is structured so the UI can point at the offending IDs.
@@ -295,7 +295,7 @@ def test_create_agent_rejects_orphan_child(
     body = _minimal_create_body()
     body["mcp_server_ids"] = []  # parent intentionally omitted
     body["child_resource_ids"] = [str(mcp_refs["child_id"])]
-    r = client.post("/admin/agents", json=body, headers=_auth(token))
+    r = client.post("/api/admin/agents", json=body, headers=_auth(token))
     assert r.status_code == 422
 
 
@@ -305,7 +305,7 @@ def test_create_agent_rejects_invalid_payload(
     _, token = seeded_admin
     # Missing required `instructions` -> Pydantic 422.
     r = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json={"name": "x", "model": "m"},
         headers=_auth(token),
     )
@@ -324,7 +324,7 @@ def _seed_three_agents(client: TestClient, token: str) -> None:
         ("betatron", "gpt-5"),
     ]:
         client.post(
-            "/admin/agents",
+            "/api/admin/agents",
             json={
                 "name": name,
                 "model": model,
@@ -337,7 +337,7 @@ def _seed_three_agents(client: TestClient, token: str) -> None:
 def test_list_agents_paginates(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     _seed_three_agents(client, token)
-    r = client.get("/admin/agents?page=1&page_size=2", headers=_auth(token))
+    r = client.get("/api/admin/agents?page=1&page_size=2", headers=_auth(token))
     body = r.json()
     assert body["total"] == 3
     assert len(body["items"]) == 2
@@ -348,7 +348,7 @@ def test_list_agents_search_matches_substring(
 ) -> None:
     _, token = seeded_admin
     _seed_three_agents(client, token)
-    r = client.get("/admin/agents?search=beta", headers=_auth(token))
+    r = client.get("/api/admin/agents?search=beta", headers=_auth(token))
     body = r.json()
     assert body["total"] == 2
     assert {item["name"] for item in body["items"]} == {"beta", "betatron"}
@@ -357,7 +357,7 @@ def test_list_agents_search_matches_substring(
 def test_list_agents_model_filter(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     _seed_three_agents(client, token)
-    r = client.get("/admin/agents?model=gpt-5", headers=_auth(token))
+    r = client.get("/api/admin/agents?model=gpt-5", headers=_auth(token))
     body = r.json()
     assert body["total"] == 2
     assert {item["name"] for item in body["items"]} == {"alpha", "betatron"}
@@ -366,19 +366,19 @@ def test_list_agents_model_filter(client: TestClient, seeded_admin: tuple[UUID, 
 def test_get_agent_by_id(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
-    r = client.get(f"/admin/agents/{created['id']}", headers=_auth(token))
+    r = client.get(f"/api/admin/agents/{created['id']}", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["name"] == "researcher"
 
 
 def test_get_agent_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.get(f"/admin/agents/{uuid4()}", headers=_auth(token))
+    r = client.get(f"/api/admin/agents/{uuid4()}", headers=_auth(token))
     assert r.status_code == 404
 
 
@@ -394,13 +394,13 @@ def test_update_agent_partial(
 ) -> None:
     admin_id, token = seeded_admin
     created = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/agents/{created['id']}",
+        f"/api/admin/agents/{created['id']}",
         json={"instructions": "be helpful"},
         headers=_auth(token),
     )
@@ -430,13 +430,13 @@ def test_update_agent_no_op_no_audit(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/agents/{created['id']}",
+        f"/api/admin/agents/{created['id']}",
         json={},
         headers=_auth(token),
     )
@@ -450,7 +450,7 @@ def test_update_agent_no_op_no_audit(
 def test_update_agent_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
     r = client.patch(
-        f"/admin/agents/{uuid4()}",
+        f"/api/admin/agents/{uuid4()}",
         json={"name": "ghost"},
         headers=_auth(token),
     )
@@ -462,18 +462,18 @@ def test_update_agent_rejects_duplicate_name(
 ) -> None:
     _, token = seeded_admin
     client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body("alpha"),
         headers=_auth(token),
     )
     b = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body("beta"),
         headers=_auth(token),
     ).json()
 
     r = client.patch(
-        f"/admin/agents/{b['id']}",
+        f"/api/admin/agents/{b['id']}",
         json={"name": "alpha"},
         headers=_auth(token),
     )
@@ -488,7 +488,7 @@ def test_update_agent_rejects_invalid_refs(
     """Clearing mcp_server_ids while leaving an orphan child must 422."""
     _, token = seeded_admin
     created = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json={
             **_minimal_create_body(),
             "mcp_server_ids": [str(mcp_refs["server_id"])],
@@ -498,7 +498,7 @@ def test_update_agent_rejects_invalid_refs(
     ).json()
 
     r = client.patch(
-        f"/admin/agents/{created['id']}",
+        f"/api/admin/agents/{created['id']}",
         json={"mcp_server_ids": []},
         headers=_auth(token),
     )
@@ -517,19 +517,19 @@ def test_archive_agent_hides_from_default_list(
 ) -> None:
     admin_id, token = seeded_admin
     created = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
-    r = client.post(f"/admin/agents/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/api/admin/agents/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["archived_at"] is not None
 
-    body = client.get("/admin/agents", headers=_auth(token)).json()
+    body = client.get("/api/admin/agents", headers=_auth(token)).json()
     assert body["total"] == 0
 
-    body = client.get("/admin/agents?include_archived=true", headers=_auth(token)).json()
+    body = client.get("/api/admin/agents?include_archived=true", headers=_auth(token)).json()
     assert body["total"] == 1
 
     with sync_session_maker() as s:
@@ -546,13 +546,13 @@ def test_archive_then_unarchive_restores(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
-    client.post(f"/admin/agents/{created['id']}/archive", headers=_auth(token))
-    r = client.post(f"/admin/agents/{created['id']}/unarchive", headers=_auth(token))
+    client.post(f"/api/admin/agents/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/api/admin/agents/{created['id']}/unarchive", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["archived_at"] is None
 
@@ -564,13 +564,13 @@ def test_archive_already_archived_is_noop(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         json=_minimal_create_body(),
         headers=_auth(token),
     ).json()
 
-    client.post(f"/admin/agents/{created['id']}/archive", headers=_auth(token))
-    r = client.post(f"/admin/agents/{created['id']}/archive", headers=_auth(token))
+    client.post(f"/api/admin/agents/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/api/admin/agents/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
 
     with sync_session_maker() as s:
@@ -580,5 +580,5 @@ def test_archive_already_archived_is_noop(
 
 def test_archive_404_when_missing(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.post(f"/admin/agents/{uuid4()}/archive", headers=_auth(token))
+    r = client.post(f"/api/admin/agents/{uuid4()}/archive", headers=_auth(token))
     assert r.status_code == 404

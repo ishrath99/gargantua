@@ -207,7 +207,7 @@ def _auth(token: str) -> dict[str, str]:
 def _login_admin(client: TestClient) -> str:
     """Exchange bootstrap-admin credentials for an access token."""
     r = client.post(
-        "/auth/login",
+        "/api/auth/login",
         json={"username": BOOTSTRAP_ADMIN_USER, "password": BOOTSTRAP_ADMIN_PASS},
     )
     assert r.status_code == 200, r.text
@@ -226,7 +226,7 @@ def _create_type_server_agent(client: TestClient, token: str) -> tuple[str, str,
     # subprocess.  build_mcp_tools is patched so nothing is actually
     # forked.
     r = client.post(
-        "/admin/mcp-server-types",
+        "/api/admin/mcp-server-types",
         headers=headers,
         json={
             "slug": "echo-mcp",
@@ -253,7 +253,7 @@ def _create_type_server_agent(client: TestClient, token: str) -> tuple[str, str,
     # Instance: includes a secret env var so the AES encryption path
     # is exercised (and the response masking).
     r = client.post(
-        "/admin/mcp-servers",
+        "/api/admin/mcp-servers",
         headers=headers,
         json={
             "type_id": type_id,
@@ -267,7 +267,7 @@ def _create_type_server_agent(client: TestClient, token: str) -> tuple[str, str,
 
     # Agent: references the server so the run-route's lease path runs.
     r = client.post(
-        "/admin/agents",
+        "/api/admin/agents",
         headers=headers,
         json={
             "name": "smoke-bot",
@@ -327,7 +327,7 @@ def test_full_lifecycle_nonstreaming(configured) -> None:
 
             # 2. Verify /auth/me round-trips the token and resolves to
             #    a user row.
-            r = client.get("/auth/me", headers=_auth(token))
+            r = client.get("/api/auth/me", headers=_auth(token))
             assert r.status_code == 200, r.text
             me = r.json()
             assert me["username"] == BOOTSTRAP_ADMIN_USER
@@ -339,7 +339,7 @@ def test_full_lifecycle_nonstreaming(configured) -> None:
 
             # 4. The agent must show up in /me/agents (no archived
             #    filter false-positives, no admin-only field leaks).
-            r = client.get("/me/agents", headers=_auth(token))
+            r = client.get("/api/me/agents", headers=_auth(token))
             assert r.status_code == 200
             listing = r.json()
             assert listing["total"] == 1
@@ -357,7 +357,7 @@ def test_full_lifecycle_nonstreaming(configured) -> None:
             #      released it (cache snapshot empty / ref_count = 0)
             #    - have forwarded the JWT-derived user_id into arun
             r = client.post(
-                f"/v1/agents/{agent_id}/runs",
+                f"/api/v1/agents/{agent_id}/runs",
                 headers=_auth(token),
                 json={"input": "hello", "session_id": "smoke-sess"},
             )
@@ -385,7 +385,7 @@ def test_full_lifecycle_nonstreaming(configured) -> None:
 
             # 6. /admin/audit should have entries for every mutation
             #    we just did (catalog, server, agent).
-            r = client.get("/admin/audit", headers=_auth(token))
+            r = client.get("/api/admin/audit", headers=_auth(token))
             assert r.status_code == 200
             audit_actions = {row["action"] for row in r.json()["items"]}
             assert audit_actions >= {
@@ -434,7 +434,7 @@ def test_full_lifecycle_streaming(configured) -> None:
             _, _server_id, agent_id = _create_type_server_agent(client, token)
 
             r = client.post(
-                f"/v1/agents/{agent_id}/runs",
+                f"/api/v1/agents/{agent_id}/runs",
                 headers=_auth(token),
                 json={"input": "hi", "stream": True},
             )

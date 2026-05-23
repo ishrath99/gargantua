@@ -93,8 +93,8 @@ def app(configured_env) -> FastAPI:
     from gargantua.api.me import router as me_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(me_router, prefix="/me")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(me_router, prefix="/api/me")
     return a
 
 
@@ -187,12 +187,12 @@ def _seed_team(
 
 
 def test_me_agents_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/me/agents")
+    r = client.get("/api/me/agents")
     assert r.status_code == 401
 
 
 def test_me_teams_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/me/teams")
+    r = client.get("/api/me/teams")
     assert r.status_code == 401
 
 
@@ -200,7 +200,7 @@ def test_me_agents_with_user_token_returns_200(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.get("/me/agents", headers=_auth(token))
+    r = client.get("/api/me/agents", headers=_auth(token))
     assert r.status_code == 200
     assert r.json() == {"items": [], "total": 0}
 
@@ -211,7 +211,7 @@ def test_me_agents_with_admin_token_also_returns_200(
     """Admins can hit the user-facing endpoint too (admin scope implies
     user access)."""
     _, token = seeded_admin
-    r = client.get("/me/agents", headers=_auth(token))
+    r = client.get("/api/me/agents", headers=_auth(token))
     assert r.status_code == 200
 
 
@@ -231,7 +231,7 @@ def test_me_agents_returns_only_non_archived(
     active = _seed_agent(sync_session_maker, name="active")
     _seed_agent(sync_session_maker, name="archived", archived=True)
 
-    r = client.get("/me/agents", headers=_auth(token))
+    r = client.get("/api/me/agents", headers=_auth(token))
     body = r.json()
     assert body["total"] == 1
     ids = [item["id"] for item in body["items"]]
@@ -250,7 +250,7 @@ def test_me_agents_response_shape_excludes_admin_fields(
     server_ids = [uuid4(), uuid4()]
     _seed_agent(sync_session_maker, name="planner", mcp_server_ids=server_ids)
 
-    r = client.get("/me/agents", headers=_auth(token))
+    r = client.get("/api/me/agents", headers=_auth(token))
     item = r.json()["items"][0]
 
     # Present:
@@ -284,8 +284,8 @@ def test_me_agents_returns_multiple_in_stable_order(
     for name in ("charlie", "alpha", "bravo"):
         _seed_agent(sync_session_maker, name=name)
 
-    r1 = client.get("/me/agents", headers=_auth(token))
-    r2 = client.get("/me/agents", headers=_auth(token))
+    r1 = client.get("/api/me/agents", headers=_auth(token))
+    r2 = client.get("/api/me/agents", headers=_auth(token))
     names1 = [item["name"] for item in r1.json()["items"]]
     names2 = [item["name"] for item in r2.json()["items"]]
     assert names1 == names2
@@ -308,7 +308,7 @@ def test_me_teams_returns_only_non_archived(
     active = _seed_team(sync_session_maker, name="active-team", member_agent_ids=[member.id])
     _seed_team(sync_session_maker, name="archived-team", archived=True)
 
-    r = client.get("/me/teams", headers=_auth(token))
+    r = client.get("/api/me/teams", headers=_auth(token))
     body = r.json()
     assert body["total"] == 1
     assert body["items"][0]["id"] == str(active.id)
@@ -328,7 +328,7 @@ def test_me_teams_response_shape_excludes_admin_fields(
         member_agent_ids=[member.id],
     )
 
-    r = client.get("/me/teams", headers=_auth(token))
+    r = client.get("/api/me/teams", headers=_auth(token))
     item = r.json()["items"][0]
 
     assert item["name"] == "ops"
@@ -356,6 +356,6 @@ def test_me_teams_supports_all_three_modes(
     for mode in ("route", "coordinate", "collaborate"):
         _seed_team(sync_session_maker, name=f"t-{mode}", mode=mode)
 
-    body = client.get("/me/teams", headers=_auth(token)).json()
+    body = client.get("/api/me/teams", headers=_auth(token)).json()
     modes = {item["mode"] for item in body["items"]}
     assert modes == {"route", "coordinate", "collaborate"}

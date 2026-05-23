@@ -226,8 +226,8 @@ def app(configured_env, cache: MCPCache) -> FastAPI:
     from gargantua.api.runs import router as runs_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(runs_router, prefix="/v1")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(runs_router, prefix="/api/v1")
     a.state.mcp_cache = cache
     a.state.agno_db = None  # routes accept None gracefully
     return a
@@ -340,14 +340,14 @@ def _seed_mcp_server_with_child(s: sessionmaker, *, child_name: str) -> tuple[UU
 
 
 def test_run_without_token_returns_401(client: TestClient) -> None:
-    r = client.post(f"/v1/agents/{uuid4()}/runs", json={"input": "hi"})
+    r = client.post(f"/api/v1/agents/{uuid4()}/runs", json={"input": "hi"})
     assert r.status_code == 401
 
 
 def test_run_missing_agent_returns_404(client: TestClient, seeded_user: tuple[UUID, str]) -> None:
     _, token = seeded_user
     r = client.post(
-        f"/v1/agents/{uuid4()}/runs",
+        f"/api/v1/agents/{uuid4()}/runs",
         json={"input": "hi"},
         headers=_auth(token),
     )
@@ -364,7 +364,7 @@ def test_run_archived_agent_returns_404(
     _, token = seeded_user
     a = _seed_agent(sync_session_maker, archived=True)
     r = client.post(
-        f"/v1/agents/{a.id}/runs",
+        f"/api/v1/agents/{a.id}/runs",
         json={"input": "hi"},
         headers=_auth(token),
     )
@@ -381,7 +381,7 @@ def test_run_rejects_unknown_body_fields(
     _, token = seeded_user
     a = _seed_agent(sync_session_maker)
     r = client.post(
-        f"/v1/agents/{a.id}/runs",
+        f"/api/v1/agents/{a.id}/runs",
         json={"input": "hi", "strem": True},  # typo
         headers=_auth(token),
     )
@@ -406,7 +406,7 @@ def test_non_streaming_returns_run_output_dict(
 
     with patch("gargantua.api.runs.build_agno_agent", return_value=fake):
         r = client.post(
-            f"/v1/agents/{a.id}/runs",
+            f"/api/v1/agents/{a.id}/runs",
             json={"input": "say hi", "session_id": "sess-1"},
             headers=_auth(token),
         )
@@ -451,7 +451,7 @@ def test_non_streaming_with_mcp_servers_acquires_and_releases_leases(
 
     with patch("gargantua.api.runs.build_agno_agent", side_effect=_capture):
         r = client.post(
-            f"/v1/agents/{agent_row.id}/runs",
+            f"/api/v1/agents/{agent_row.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )
@@ -489,7 +489,7 @@ def test_non_streaming_lease_failure_returns_503_and_no_leak(
 
     with patch("gargantua.api.runs.build_agno_agent", return_value=fake):
         r = client.post(
-            f"/v1/agents/{agent_row.id}/runs",
+            f"/api/v1/agents/{agent_row.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )
@@ -524,7 +524,7 @@ def test_run_propagates_arun_exception_as_500(
 
     with patch("gargantua.api.runs.build_agno_agent", return_value=_Boom()):
         r = client.post(
-            f"/v1/agents/{a.id}/runs",
+            f"/api/v1/agents/{a.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )
@@ -563,7 +563,7 @@ def test_streaming_returns_sse_chunks_and_done_marker(
 
     with patch("gargantua.api.runs.build_agno_agent", return_value=fake):
         r = client.post(
-            f"/v1/agents/{a.id}/runs",
+            f"/api/v1/agents/{a.id}/runs",
             json={"input": "stream me", "stream": True},
             headers=_auth(token),
         )
@@ -610,7 +610,7 @@ def test_streaming_releases_leases_after_stream_completes(
 
     with patch("gargantua.api.runs.build_agno_agent", return_value=fake):
         r = client.post(
-            f"/v1/agents/{a.id}/runs",
+            f"/api/v1/agents/{a.id}/runs",
             json={"input": "x", "stream": True},
             headers=_auth(token),
         )
@@ -656,7 +656,7 @@ def test_run_with_child_resources_binds_cache_entry_to_child_set(
 
     with patch("gargantua.api.runs.build_agno_agent", return_value=fake):
         r = client.post(
-            f"/v1/agents/{agent_row.id}/runs",
+            f"/api/v1/agents/{agent_row.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )
@@ -699,7 +699,7 @@ def test_run_with_child_resources_distinct_from_bare_run(
     with patch("gargantua.api.runs.build_agno_agent", return_value=fake):
         for agent_row in (bare_agent, filtered_agent):
             r = client.post(
-                f"/v1/agents/{agent_row.id}/runs",
+                f"/api/v1/agents/{agent_row.id}/runs",
                 json={"input": "x"},
                 headers=_auth(token),
             )
@@ -742,7 +742,7 @@ def test_run_with_orphan_child_resource_silently_drops_it(
 
     with patch("gargantua.api.runs.build_agno_agent", return_value=fake):
         r = client.post(
-            f"/v1/agents/{agent_row.id}/runs",
+            f"/api/v1/agents/{agent_row.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )

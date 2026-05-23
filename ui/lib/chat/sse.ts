@@ -152,7 +152,7 @@ async function tryRefresh(): Promise<boolean> {
   const refresh = getRefreshToken();
   if (refresh === null) return false;
   try {
-    const r = await fetch(resolveUrl('/auth/refresh'), {
+    const r = await fetch(resolveUrl('/api/auth/refresh'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refresh }),

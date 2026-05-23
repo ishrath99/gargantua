@@ -161,8 +161,8 @@ def app(configured_env, cache: MCPCache) -> FastAPI:
     from gargantua.api.auth import router as auth_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(admin_router, prefix="/admin")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(admin_router, prefix="/api/admin")
     # Routes resolve the cache via ``request.app.state.mcp_cache``; we
     # inject the test double here so we don't need a full lifespan.
     a.state.mcp_cache = cache
@@ -220,7 +220,7 @@ def _auth(token: str) -> dict[str, str]:
 
 
 def test_get_cache_without_token_returns_401(client: TestClient) -> None:
-    r = client.get("/admin/mcp-cache")
+    r = client.get("/api/admin/mcp-cache")
     assert r.status_code == 401
 
 
@@ -228,7 +228,7 @@ def test_get_cache_with_user_token_returns_403(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.get("/admin/mcp-cache", headers=_auth(token))
+    r = client.get("/api/admin/mcp-cache", headers=_auth(token))
     assert r.status_code == 403
 
 
@@ -236,7 +236,7 @@ def test_get_cache_with_admin_token_returns_empty(
     client: TestClient, seeded_admin: tuple[UUID, str]
 ) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/mcp-cache", headers=_auth(token))
+    r = client.get("/api/admin/mcp-cache", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
     assert body == {"items": [], "total": 0}
@@ -259,7 +259,7 @@ async def test_get_cache_reflects_inspect(
 
     lease = await cache.acquire(sid)
     try:
-        r = client.get("/admin/mcp-cache", headers=_auth(token))
+        r = client.get("/api/admin/mcp-cache", headers=_auth(token))
         assert r.status_code == 200
         body = r.json()
         assert body["total"] == 1
@@ -290,7 +290,7 @@ async def test_get_cache_includes_orphans(
     backend._rows[sid] = (2, backend.add(sid, version=2))  # bump
     lease_new = await cache.acquire(sid)
     try:
-        body = client.get("/admin/mcp-cache", headers=_auth(token)).json()
+        body = client.get("/api/admin/mcp-cache", headers=_auth(token)).json()
         assert body["total"] == 2
         by_version = {item["version"]: item for item in body["items"]}
         assert by_version[1]["is_orphan"] is True
@@ -318,7 +318,7 @@ async def test_evict_closes_entry_and_audits(
     lease = await cache.acquire(sid)
     await lease.release()
 
-    r = client.post(f"/admin/mcp-cache/{sid}/evict", headers=_auth(token))
+    r = client.post(f"/api/admin/mcp-cache/{sid}/evict", headers=_auth(token))
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["evicted"] is True
@@ -347,7 +347,7 @@ async def test_evict_returns_404_when_not_cached(
     operator should know nothing happened (and no audit row should
     appear, to avoid noise)."""
     _, token = seeded_admin
-    r = client.post(f"/admin/mcp-cache/{uuid4()}/evict", headers=_auth(token))
+    r = client.post(f"/api/admin/mcp-cache/{uuid4()}/evict", headers=_auth(token))
     assert r.status_code == 404
 
     with sync_session_maker() as s:
@@ -356,7 +356,7 @@ async def test_evict_returns_404_when_not_cached(
 
 
 def test_evict_without_token_returns_401(client: TestClient) -> None:
-    r = client.post(f"/admin/mcp-cache/{uuid4()}/evict")
+    r = client.post(f"/api/admin/mcp-cache/{uuid4()}/evict")
     assert r.status_code == 401
 
 
@@ -364,5 +364,5 @@ def test_evict_with_user_token_returns_403(
     client: TestClient, seeded_user: tuple[UUID, str]
 ) -> None:
     _, token = seeded_user
-    r = client.post(f"/admin/mcp-cache/{uuid4()}/evict", headers=_auth(token))
+    r = client.post(f"/api/admin/mcp-cache/{uuid4()}/evict", headers=_auth(token))
     assert r.status_code == 403

@@ -99,8 +99,8 @@ def app(configured_env) -> FastAPI:
     from gargantua.api.auth import router as auth_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(admin_router, prefix="/admin")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(admin_router, prefix="/api/admin")
     return a
 
 
@@ -197,17 +197,17 @@ def _server_body(type_id: UUID, **overrides) -> dict:
 
 
 def test_list_servers_401_without_token(client: TestClient) -> None:
-    assert client.get("/admin/mcp-servers").status_code == 401
+    assert client.get("/api/admin/mcp-servers").status_code == 401
 
 
 def test_list_servers_403_for_user_token(client: TestClient, seeded_user: tuple[UUID, str]) -> None:
     _, token = seeded_user
-    assert client.get("/admin/mcp-servers", headers=_auth(token)).status_code == 403
+    assert client.get("/api/admin/mcp-servers", headers=_auth(token)).status_code == 403
 
 
 def test_list_servers_200_for_admin(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.get("/admin/mcp-servers", headers=_auth(token))
+    r = client.get("/api/admin/mcp-servers", headers=_auth(token))
     assert r.status_code == 200
     assert r.json() == {"items": [], "total": 0, "page": 1, "page_size": 50}
 
@@ -224,7 +224,7 @@ def test_create_server_masks_secrets_in_response(
     sync_session_maker: sessionmaker,
 ) -> None:
     admin_id, token = seeded_admin
-    r = client.post("/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token))
+    r = client.post("/api/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token))
     assert r.status_code == 201, r.text
     body = r.json()
 
@@ -252,7 +252,7 @@ def test_create_server_rejects_unknown_type(
 ) -> None:
     _, token = seeded_admin
     r = client.post(
-        "/admin/mcp-servers",
+        "/api/admin/mcp-servers",
         json=_server_body(uuid4()),
         headers=_auth(token),
     )
@@ -276,7 +276,7 @@ def test_create_server_rejects_archived_type(
         s.refresh(t)
         tid = t.id
 
-    r = client.post("/admin/mcp-servers", json=_server_body(tid), headers=_auth(token))
+    r = client.post("/api/admin/mcp-servers", json=_server_body(tid), headers=_auth(token))
     assert r.status_code == 422
     assert "archived" in r.text.lower()
 
@@ -286,8 +286,8 @@ def test_create_server_rejects_duplicate(
 ) -> None:
     _, token = seeded_admin
     body = _server_body(seeded_type)
-    assert client.post("/admin/mcp-servers", json=body, headers=_auth(token)).status_code == 201
-    assert client.post("/admin/mcp-servers", json=body, headers=_auth(token)).status_code == 409
+    assert client.post("/api/admin/mcp-servers", json=body, headers=_auth(token)).status_code == 201
+    assert client.post("/api/admin/mcp-servers", json=body, headers=_auth(token)).status_code == 409
 
 
 def test_create_server_invalid_env_tag(
@@ -295,7 +295,7 @@ def test_create_server_invalid_env_tag(
 ) -> None:
     _, token = seeded_admin
     r = client.post(
-        "/admin/mcp-servers",
+        "/api/admin/mcp-servers",
         json=_server_body(seeded_type, env_tag="UPPER CASE"),
         headers=_auth(token),
     )
@@ -312,18 +312,18 @@ def test_list_filters_by_type_and_env_tag(
 ) -> None:
     _, token = seeded_admin
     client.post(
-        "/admin/mcp-servers",
+        "/api/admin/mcp-servers",
         json=_server_body(seeded_type, name="a", env_tag="prod"),
         headers=_auth(token),
     )
     client.post(
-        "/admin/mcp-servers",
+        "/api/admin/mcp-servers",
         json=_server_body(seeded_type, name="a", env_tag="dev"),
         headers=_auth(token),
     )
 
     r = client.get(
-        f"/admin/mcp-servers?type_id={seeded_type}&env_tag=prod",
+        f"/api/admin/mcp-servers?type_id={seeded_type}&env_tag=prod",
         headers=_auth(token),
     )
     body = r.json()
@@ -335,7 +335,7 @@ def test_list_filters_by_type_and_env_tag(
 
 def test_get_server_404(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
     _, token = seeded_admin
-    r = client.get(f"/admin/mcp-servers/{uuid4()}", headers=_auth(token))
+    r = client.get(f"/api/admin/mcp-servers/{uuid4()}", headers=_auth(token))
     assert r.status_code == 404
 
 
@@ -352,11 +352,11 @@ def test_update_partial_preserves_env_vars(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
+        "/api/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
     ).json()
 
     r = client.patch(
-        f"/admin/mcp-servers/{created['id']}",
+        f"/api/admin/mcp-servers/{created['id']}",
         json={"name": "db-prod-v2"},
         headers=_auth(token),
     )
@@ -377,11 +377,11 @@ def test_update_env_vars_replaces_all_and_audits_masked(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
+        "/api/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
     ).json()
 
     r = client.patch(
-        f"/admin/mcp-servers/{created['id']}",
+        f"/api/admin/mcp-servers/{created['id']}",
         json={"env_vars": {"DSN": "postgres://new", "READ_ONLY": "false"}},
         headers=_auth(token),
     )
@@ -413,10 +413,10 @@ def test_update_noop_writes_no_audit(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
+        "/api/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
     ).json()
 
-    r = client.patch(f"/admin/mcp-servers/{created['id']}", json={}, headers=_auth(token))
+    r = client.patch(f"/api/admin/mcp-servers/{created['id']}", json={}, headers=_auth(token))
     assert r.status_code == 200
 
     with sync_session_maker() as s:
@@ -434,17 +434,17 @@ def test_archive_hides_from_default_list(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
+        "/api/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
     ).json()
 
-    r = client.post(f"/admin/mcp-servers/{created['id']}/archive", headers=_auth(token))
+    r = client.post(f"/api/admin/mcp-servers/{created['id']}/archive", headers=_auth(token))
     assert r.status_code == 200
     assert r.json()["archived_at"] is not None
 
-    body = client.get("/admin/mcp-servers", headers=_auth(token)).json()
+    body = client.get("/api/admin/mcp-servers", headers=_auth(token)).json()
     assert body["total"] == 0
 
-    body = client.get("/admin/mcp-servers?include_archived=true", headers=_auth(token)).json()
+    body = client.get("/api/admin/mcp-servers?include_archived=true", headers=_auth(token)).json()
     assert body["total"] == 1
 
 
@@ -456,10 +456,10 @@ def test_archive_idempotent_writes_one_audit(
 ) -> None:
     _, token = seeded_admin
     created = client.post(
-        "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
+        "/api/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
     ).json()
-    client.post(f"/admin/mcp-servers/{created['id']}/archive", headers=_auth(token))
-    client.post(f"/admin/mcp-servers/{created['id']}/archive", headers=_auth(token))
+    client.post(f"/api/admin/mcp-servers/{created['id']}/archive", headers=_auth(token))
+    client.post(f"/api/admin/mcp-servers/{created['id']}/archive", headers=_auth(token))
 
     with sync_session_maker() as s:
         rows = (
@@ -486,7 +486,7 @@ def test_get_under_mismatched_kek_returns_503(
     hint — never as a 500."""
     _, token = seeded_admin
     created = client.post(
-        "/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
+        "/api/admin/mcp-servers", json=_server_body(seeded_type), headers=_auth(token)
     ).json()
 
     # Swap MASTER_KEY without rotating.
@@ -495,6 +495,6 @@ def test_get_under_mismatched_kek_returns_503(
 
     get_settings.cache_clear()
 
-    r = client.get(f"/admin/mcp-servers/{created['id']}", headers=_auth(token))
+    r = client.get(f"/api/admin/mcp-servers/{created['id']}", headers=_auth(token))
     assert r.status_code == 503
     assert "rotate" in r.json()["detail"].lower()

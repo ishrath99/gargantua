@@ -208,8 +208,8 @@ def app(configured_env, cache: MCPCache) -> FastAPI:
     from gargantua.api.runs import router as runs_router
 
     a = FastAPI()
-    a.include_router(auth_router, prefix="/auth")
-    a.include_router(runs_router, prefix="/v1")
+    a.include_router(auth_router, prefix="/api/auth")
+    a.include_router(runs_router, prefix="/api/v1")
     a.state.mcp_cache = cache
     a.state.agno_db = None
     return a
@@ -344,14 +344,14 @@ def _patched_builders(
 
 
 def test_run_team_without_token_returns_401(client: TestClient) -> None:
-    r = client.post(f"/v1/teams/{uuid4()}/runs", json={"input": "hi"})
+    r = client.post(f"/api/v1/teams/{uuid4()}/runs", json={"input": "hi"})
     assert r.status_code == 401
 
 
 def test_run_missing_team_returns_404(client: TestClient, seeded_user: tuple[UUID, str]) -> None:
     _, token = seeded_user
     r = client.post(
-        f"/v1/teams/{uuid4()}/runs",
+        f"/api/v1/teams/{uuid4()}/runs",
         json={"input": "hi"},
         headers=_auth(token),
     )
@@ -366,7 +366,7 @@ def test_run_archived_team_returns_404(
     _, token = seeded_user
     t = _seed_team(sync_session_maker, name="dead", archived=True)
     r = client.post(
-        f"/v1/teams/{t.id}/runs",
+        f"/api/v1/teams/{t.id}/runs",
         json={"input": "hi"},
         headers=_auth(token),
     )
@@ -384,7 +384,7 @@ def test_run_team_with_no_members_returns_422(
     _, token = seeded_user
     t = _seed_team(sync_session_maker, name="empty", member_agent_ids=[])
     r = client.post(
-        f"/v1/teams/{t.id}/runs",
+        f"/api/v1/teams/{t.id}/runs",
         json={"input": "hi"},
         headers=_auth(token),
     )
@@ -406,7 +406,7 @@ def test_run_team_with_missing_member_returns_422(
     ghost = uuid4()
     t = _seed_team(sync_session_maker, name="t", member_agent_ids=[real.id, ghost])
     r = client.post(
-        f"/v1/teams/{t.id}/runs",
+        f"/api/v1/teams/{t.id}/runs",
         json={"input": "hi"},
         headers=_auth(token),
     )
@@ -433,7 +433,7 @@ def test_run_team_with_archived_member_returns_422(
         member_agent_ids=[healthy.id, retired.id],
     )
     r = client.post(
-        f"/v1/teams/{t.id}/runs",
+        f"/api/v1/teams/{t.id}/runs",
         json={"input": "hi"},
         headers=_auth(token),
     )
@@ -452,7 +452,7 @@ def test_run_rejects_unknown_body_fields_team(
     m = _seed_agent(sync_session_maker, name="m")
     t = _seed_team(sync_session_maker, name="t", member_agent_ids=[m.id])
     r = client.post(
-        f"/v1/teams/{t.id}/runs",
+        f"/api/v1/teams/{t.id}/runs",
         json={"input": "hi", "strem": True},  # typo
         headers=_auth(token),
     )
@@ -484,7 +484,7 @@ def test_non_streaming_team_returns_run_output_dict(
     )
     with agent_patch, team_patch:
         r = client.post(
-            f"/v1/teams/{t.id}/runs",
+            f"/api/v1/teams/{t.id}/runs",
             json={"input": "go", "session_id": "sess-team"},
             headers=_auth(token),
         )
@@ -538,7 +538,7 @@ def test_team_tools_are_sliced_per_member(
     agent_patch, team_patch, captured_agents, _ = _patched_builders(team_factory=_team_with_result)
     with agent_patch, team_patch:
         r = client.post(
-            f"/v1/teams/{t.id}/runs",
+            f"/api/v1/teams/{t.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )
@@ -582,7 +582,7 @@ def test_team_lease_dedup_across_members(
     agent_patch, team_patch, captured_agents, _ = _patched_builders(team_factory=_team_with_result)
     with agent_patch, team_patch:
         r = client.post(
-            f"/v1/teams/{t.id}/runs",
+            f"/api/v1/teams/{t.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )
@@ -627,7 +627,7 @@ def test_team_lease_failure_returns_503_no_leak(
     agent_patch, team_patch, _, _ = _patched_builders()
     with agent_patch, team_patch:
         r = client.post(
-            f"/v1/teams/{t.id}/runs",
+            f"/api/v1/teams/{t.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )
@@ -662,7 +662,7 @@ def test_team_arun_exception_propagates_as_500_with_release(
     )
     with agent_patch, team_patch:
         r = client.post(
-            f"/v1/teams/{t.id}/runs",
+            f"/api/v1/teams/{t.id}/runs",
             json={"input": "x"},
             headers=_auth(token),
         )
@@ -703,7 +703,7 @@ def test_streaming_team_returns_sse_chunks_and_done_marker(
     agent_patch, team_patch, _, _ = _patched_builders(team_factory=_team_streaming)
     with agent_patch, team_patch:
         r = client.post(
-            f"/v1/teams/{t.id}/runs",
+            f"/api/v1/teams/{t.id}/runs",
             json={"input": "x", "stream": True},
             headers=_auth(token),
         )
@@ -742,7 +742,7 @@ def test_streaming_team_releases_leases_after_stream_completes(
     agent_patch, team_patch, _, _ = _patched_builders(team_factory=_team_streaming)
     with agent_patch, team_patch:
         r = client.post(
-            f"/v1/teams/{t.id}/runs",
+            f"/api/v1/teams/{t.id}/runs",
             json={"input": "x", "stream": True},
             headers=_auth(token),
         )

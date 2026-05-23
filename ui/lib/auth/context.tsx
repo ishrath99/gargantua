@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     try {
-      const me = await apiFetch<MeResponse>('/auth/me');
+      const me = await apiFetch<MeResponse>('/api/auth/me');
       setUser(me);
     } catch {
       // The client already cleared tokens if refresh failed.  Set
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (credentials: LoginRequest) => {
-      const pair = await apiFetch<TokenPair>('/auth/login', {
+      const pair = await apiFetch<TokenPair>('/api/auth/login', {
         method: 'POST',
         body: credentials,
         // A 401 here means "wrong password", not "token expired" —
