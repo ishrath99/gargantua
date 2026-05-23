@@ -209,14 +209,15 @@ gargantua-admin user list`).
 /app/secrets       JWT keys (mount a volume to persist across rebuilds)
 ```
 
-The image is multi-stage so the runtime layer is ~250MB:
+The image is multi-stage and lands at ~500MB:
 
 * `ui-builder` (`node:20-bookworm-slim`) — `pnpm install` + `pnpm build`,
   with `NEXT_PUBLIC_API_BASE_URL=""` so the UI uses relative URLs.
 * `py-builder` (`python:3.12-slim`) — `pip install .` into `/opt/venv`.
 * `runtime` (`python:3.12-slim`) — copies the venv + the static export,
-  drops privileges to UID 1001, runs under `tini` for clean signal
-  handling.
+  bundles Node 20 and `uv`/`uvx` so `npx ...` and `uvx ...` MCP servers
+  work out of the box, drops privileges to UID 1001, runs under `tini`
+  for clean signal handling.
 
 ## Layout
 
