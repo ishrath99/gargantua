@@ -69,7 +69,7 @@ def test_encrypt_with_kek_returns_three_fields() -> None:
 def test_decrypt_with_kek_roundtrip() -> None:
     from gargantua.secrets import decrypt_json_with_kek, encrypt_json_with_kek
 
-    payload = {"DSN": "postgresql://...", "PORT": 5432, "ENABLED": True}
+    payload = {"DATABASE_URI": "postgresql://...", "PORT": 5432, "ENABLED": True}
     ciphertext, iv, _ = encrypt_json_with_kek(payload, _KEY_A)
     assert decrypt_json_with_kek(ciphertext, iv, _KEY_A) == payload
 
@@ -205,9 +205,9 @@ def test_encrypt_json_uses_active_kek(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MASTER_KEY", base64.b64encode(raw).decode("ascii"))
     _reset_settings()
 
-    ciphertext, iv, kek_id = encrypt_json({"DSN": "x"})
+    ciphertext, iv, kek_id = encrypt_json({"DATABASE_URI": "x"})
     assert kek_id == kek_fingerprint(raw)
-    assert decrypt_json_with_kek(ciphertext, iv, raw) == {"DSN": "x"}
+    assert decrypt_json_with_kek(ciphertext, iv, raw) == {"DATABASE_URI": "x"}
 
 
 def test_decrypt_json_with_matching_active_kek(

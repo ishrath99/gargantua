@@ -78,7 +78,7 @@ def test_create_server_encrypts_env_vars(sync_session_maker, master_key) -> None
             type_id=tid,
             name="db-prod",
             env_tag="prod",
-            env_vars={"DSN": "postgres://...", "READ_ONLY": "true"},
+            env_vars={"DATABASE_URI": "postgres://...", "READ_ONLY": "true"},
         )
         s.commit()
         sid = srv.id
@@ -87,12 +87,12 @@ def test_create_server_encrypts_env_vars(sync_session_maker, master_key) -> None
         row = s.get(MCPServer, sid)
     # Bytes on disk, not the plaintext dict.
     assert isinstance(row.env_vars, (bytes, memoryview))
-    assert row.env_vars != b'{"DSN": "postgres://..."}'
+    assert row.env_vars != b'{"DATABASE_URI": "postgres://..."}'
     assert isinstance(row.env_var_iv, (bytes, memoryview))
     assert row.env_var_kek_id == kek_fingerprint(master_key)
     # Round-trip via the helper.
     assert decrypt_env_vars(row) == {
-        "DSN": "postgres://...",
+        "DATABASE_URI": "postgres://...",
         "READ_ONLY": "true",
     }
 

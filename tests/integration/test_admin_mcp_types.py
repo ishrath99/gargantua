@@ -145,7 +145,7 @@ def _minimal_create_body(slug: str = "postgres") -> dict:
         "default_args": ["postgres-mcp"],
         "config_schema": [
             {
-                "name": "DSN",
+                "name": "DATABASE_URI",
                 "label": "Connection string",
                 "type": "password",
                 "is_secret": True,
@@ -205,7 +205,7 @@ def test_create_type_201_and_audit_logged(
     assert created["mode"] == "stdio"
     assert created["version"] == 1
     assert created["archived_at"] is None
-    assert created["config_schema"][0]["name"] == "DSN"
+    assert created["config_schema"][0]["name"] == "DATABASE_URI"
 
     with sync_session_maker() as s:
         row = s.execute(select(MCPServerType).where(MCPServerType.slug == "postgres")).scalar_one()

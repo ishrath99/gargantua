@@ -155,8 +155,8 @@ def seeded_type(sync_session_maker) -> UUID:
             mode="stdio",
             config_schema=[
                 {
-                    "name": "DSN",
-                    "label": "DSN",
+                    "name": "DATABASE_URI",
+                    "label": "DATABASE_URI",
                     "type": "password",
                     "is_secret": True,
                     "required": True,
@@ -185,7 +185,7 @@ def _server_body(type_id: UUID, **overrides) -> dict:
         "type_id": str(type_id),
         "name": "db-prod",
         "env_tag": "prod",
-        "env_vars": {"DSN": "postgres://hidden", "READ_ONLY": "true"},
+        "env_vars": {"DATABASE_URI": "postgres://hidden", "READ_ONLY": "true"},
     }
     body.update(overrides)
     return body
@@ -228,11 +228,11 @@ def test_create_server_masks_secrets_in_response(
     assert r.status_code == 201, r.text
     body = r.json()
 
-    # DSN is is_secret=True -> masked.  READ_ONLY is plain -> visible.
-    assert body["env_vars"]["DSN"] == SECRET_PLACEHOLDER
+    # DATABASE_URI is is_secret=True -> masked.  READ_ONLY is plain -> visible.
+    assert body["env_vars"]["DATABASE_URI"] == SECRET_PLACEHOLDER
     assert body["env_vars"]["READ_ONLY"] == "true"
 
-    # Raw DSN never appears anywhere in the response.
+    # Raw DATABASE_URI never appears anywhere in the response.
     assert "postgres://hidden" not in r.text
 
     # Audit row has the masked projection, not the raw secret.
@@ -243,7 +243,7 @@ def test_create_server_masks_secrets_in_response(
             .where(AuditLog.target_id == UUID(body["id"]))
         ).scalar_one()
     assert audit.actor_id == admin_id
-    assert audit.after["env_vars"]["DSN"] == SECRET_PLACEHOLDER
+    assert audit.after["env_vars"]["DATABASE_URI"] == SECRET_PLACEHOLDER
     assert "postgres://hidden" not in str(audit.after)
 
 
@@ -329,8 +329,8 @@ def test_list_filters_by_type_and_env_tag(
     body = r.json()
     assert body["total"] == 1
     assert body["items"][0]["env_tag"] == "prod"
-    # Even in list view, DSN is masked.
-    assert body["items"][0]["env_vars"]["DSN"] == SECRET_PLACEHOLDER
+    # Even in list view, DATABASE_URI is masked.
+    assert body["items"][0]["env_vars"]["DATABASE_URI"] == SECRET_PLACEHOLDER
 
 
 def test_get_server_404(client: TestClient, seeded_admin: tuple[UUID, str]) -> None:
@@ -363,8 +363,8 @@ def test_update_partial_preserves_env_vars(
     assert r.status_code == 200
     body = r.json()
     assert body["name"] == "db-prod-v2"
-    # env_vars untouched -> DSN still masked but key remains.
-    assert body["env_vars"]["DSN"] == SECRET_PLACEHOLDER
+    # env_vars untouched -> DATABASE_URI still masked but key remains.
+    assert body["env_vars"]["DATABASE_URI"] == SECRET_PLACEHOLDER
     assert body["env_vars"]["READ_ONLY"] == "true"
     assert body["version"] == 2
 
@@ -382,12 +382,12 @@ def test_update_env_vars_replaces_all_and_audits_masked(
 
     r = client.patch(
         f"/api/admin/mcp-servers/{created['id']}",
-        json={"env_vars": {"DSN": "postgres://new", "READ_ONLY": "false"}},
+        json={"env_vars": {"DATABASE_URI": "postgres://new", "READ_ONLY": "false"}},
         headers=_auth(token),
     )
     assert r.status_code == 200
     body = r.json()
-    assert body["env_vars"]["DSN"] == SECRET_PLACEHOLDER
+    assert body["env_vars"]["DATABASE_URI"] == SECRET_PLACEHOLDER
     assert body["env_vars"]["READ_ONLY"] == "false"
     assert "postgres://new" not in r.text
 
@@ -397,7 +397,7 @@ def test_update_env_vars_replaces_all_and_audits_masked(
             .where(AuditLog.action == "mcp_server.update")
             .where(AuditLog.target_id == UUID(created["id"]))
         ).scalar_one()
-    # Neither before nor after carries the raw DSN value.
+    # Neither before nor after carries the raw DATABASE_URI value.
     assert "postgres://new" not in str(audit.after)
     assert "postgres://hidden" not in str(audit.before)
     # But the change in the non-secret field is visible.

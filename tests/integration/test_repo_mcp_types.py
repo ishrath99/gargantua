@@ -45,7 +45,7 @@ def test_create_inserts_with_defaults(sync_session_maker) -> None:
             default_args=["postgres-mcp"],
             config_schema=[
                 {
-                    "name": "DSN",
+                    "name": "DATABASE_URI",
                     "label": "Connection string",
                     "type": "password",
                     "is_secret": True,
@@ -60,7 +60,7 @@ def test_create_inserts_with_defaults(sync_session_maker) -> None:
     assert row.name == "PostgreSQL MCP"
     assert row.mode == "stdio"
     assert row.default_args == ["postgres-mcp"]
-    assert row.config_schema[0]["name"] == "DSN"
+    assert row.config_schema[0]["name"] == "DATABASE_URI"
     # Server-side defaults landed.
     assert row.version == 1
     assert row.archived_at is None

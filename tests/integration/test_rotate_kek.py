@@ -134,7 +134,7 @@ def test_rotate_all_secrets_re_encrypts_rows(sync_session_maker) -> None:
             s,
             type_id=t.id,
             name="db-prod",
-            env={"DSN": "postgres://...", "API_KEY": "secret1"},
+            env={"DATABASE_URI": "postgres://...", "API_KEY": "secret1"},
             kek=_KEY_OLD,
         )
         child = _seed_child_with_headers(
@@ -162,7 +162,7 @@ def test_rotate_all_secrets_re_encrypts_rows(sync_session_maker) -> None:
 
     assert srv.env_var_kek_id == kek_fingerprint(_KEY_NEW)
     assert decrypt_json_with_kek(srv.env_vars, srv.env_var_iv, _KEY_NEW) == {
-        "DSN": "postgres://...",
+        "DATABASE_URI": "postgres://...",
         "API_KEY": "secret1",
     }
     assert child.headers_kek_id == kek_fingerprint(_KEY_NEW)
@@ -184,7 +184,7 @@ def test_rotate_all_secrets_dry_run_changes_nothing(sync_session_maker) -> None:
             s,
             type_id=t.id,
             name="db-prod",
-            env={"DSN": "postgres://..."},
+            env={"DATABASE_URI": "postgres://..."},
             kek=_KEY_OLD,
         )
         s.commit()
@@ -216,7 +216,7 @@ def test_rotate_all_secrets_is_idempotent(sync_session_maker) -> None:
             s,
             type_id=t.id,
             name="db-prod",
-            env={"DSN": "postgres://..."},
+            env={"DATABASE_URI": "postgres://..."},
             kek=_KEY_OLD,
         )
         s.commit()
@@ -334,7 +334,7 @@ def test_cli_rotate_kek_rotates_rows(
             s,
             type_id=t.id,
             name="db",
-            env={"DSN": "postgres://..."},
+            env={"DATABASE_URI": "postgres://..."},
             kek=_KEY_OLD,
         )
         s.commit()
@@ -357,7 +357,7 @@ def test_cli_rotate_kek_rotates_rows(
         srv = s.get(MCPServer, server_id)
     assert srv.env_var_kek_id == kek_fingerprint(_KEY_NEW)
     assert decrypt_json_with_kek(srv.env_vars, srv.env_var_iv, _KEY_NEW) == {
-        "DSN": "postgres://..."
+        "DATABASE_URI": "postgres://..."
     }
 
 
@@ -374,7 +374,7 @@ def test_cli_rotate_kek_dry_run_does_not_write(
             s,
             type_id=t.id,
             name="db",
-            env={"DSN": "postgres://..."},
+            env={"DATABASE_URI": "postgres://..."},
             kek=_KEY_OLD,
         )
         s.commit()
