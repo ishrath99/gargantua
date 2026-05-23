@@ -108,7 +108,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="gargantua",
         version=__version__,
-        description="DB-first multi-agent SRE platform.",
+        description="DB-first control plane for multi-agent systems and MCP servers.",
         lifespan=lifespan,
     )
 

@@ -148,7 +148,7 @@ export function TeamForm({
               id="name"
               value={s.name}
               onChange={(e) => setField('name', e.target.value)}
-              placeholder="Incident response"
+              placeholder="Customer onboarding"
             />
           </div>
           <div className="space-y-1">

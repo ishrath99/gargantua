@@ -30,7 +30,10 @@ for day-2 ops procedures.
 ## What's in the box
 
 - **DB-first agent + team definitions** — full CRUD with archive, per-user
-  access scoping, and bundled Markdown instruction templates.
+  access scoping, and bundled Markdown instruction templates (the four
+  shipped templates are SRE-flavored examples; the platform itself is
+  domain-agnostic — replace them with your own for support, sales, legal,
+  research, or whatever you're actually building).
 - **MCP as a first-class citizen** — typed catalog of server kinds, per-server
   child-resource scoping (swagger docs, etc.), warm-handle cache with leases.
 - **Secrets done right** — AES-256-GCM envelope encryption under a single

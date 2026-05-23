@@ -282,7 +282,7 @@ export function AgentForm({
             value={s.instructions}
             onChange={(e) => setField('instructions', e.target.value)}
             rows={10}
-            placeholder="You are a senior SRE…"
+            placeholder="You are a helpful assistant…"
             className="font-mono text-xs"
           />
         </CardContent>
