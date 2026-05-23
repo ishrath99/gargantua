@@ -98,6 +98,28 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Catalog seed
+# ---------------------------------------------------------------------------
+# ``seed-catalog`` is idempotent by ``slug``: it inserts canonical types
+# that are missing and leaves matching rows alone.  Running it on every
+# boot costs ~50ms and gives a fresh ``docker compose up`` a non-empty
+# /admin/catalog out of the box — the first-impression footgun otherwise
+# (an empty page that silently asks the operator to know about a CLI
+# command they never saw).
+#
+# Gated on the same SKIP_MIGRATIONS flag because seeding requires the
+# ``mcp_server_type`` table to exist, which is only true after alembic
+# has run.  Errors are reported but non-fatal: a partial catalog is
+# strictly better than a container that won't boot because of a seed
+# regression.
+if [ "${SKIP_MIGRATIONS:-0}" != "1" ] && [ "${SKIP_CATALOG_SEED:-0}" != "1" ]; then
+    echo "[entrypoint] running gargantua-admin seed-catalog"
+    gargantua-admin seed-catalog || echo "[entrypoint] WARN: seed-catalog failed; catalog may be empty or partial"
+else
+    echo "[entrypoint] catalog seed skipped (SKIP_MIGRATIONS or SKIP_CATALOG_SEED set)"
+fi
+
+# ---------------------------------------------------------------------------
 # Hand off to the real command
 # ---------------------------------------------------------------------------
 exec "$@"
