@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
+  MessageSquare,
   ServerCog,
   Sparkles,
   Users,
@@ -24,6 +25,7 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
+  { label: 'Chat', href: '/', icon: MessageSquare },
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'Catalog', href: '/admin/catalog', icon: Box },
   { label: 'MCP servers', href: '/admin/mcp-servers', icon: ServerCog },
@@ -56,10 +58,16 @@ export function AdminSidebar() {
       </div>
       {NAV.map((item) => {
         const Icon = item.icon;
+        // Active-detection is per-item-shape, not just startsWith, because
+        // ``/`` (Chat) is a prefix of every URL and ``/admin`` is a prefix
+        // of every nested admin URL.  Both need exact matches; only the
+        // deeper /admin/<section> links should hi-light on descendants.
         const active =
-          item.href === '/admin'
-            ? pathname === '/admin' || pathname === '/admin/'
-            : pathname?.startsWith(item.href);
+          item.href === '/'
+            ? pathname === '/'
+            : item.href === '/admin'
+              ? pathname === '/admin' || pathname === '/admin/'
+              : pathname?.startsWith(item.href);
         return (
           <Link
             key={item.href}
