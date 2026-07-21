@@ -34,6 +34,7 @@ from gargantua.bootstrap import bootstrap_admin_if_needed
 from gargantua.db.session import dispose_engine, get_session_factory
 from gargantua.mcp_cache import MCPCache, make_row_fetcher
 from gargantua.mcp_tools import build_mcp_tools
+from gargantua.observability import setup_phoenix_tracing
 from gargantua.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info(
             "agno: debug logging enabled (AGNO_DEBUG=true); expect verbose run traces on stderr"
         )
+
+    # Arize Phoenix tracing.  No-op unless PHOENIX_COLLECTOR_ENDPOINT is set;
+    # when set, auto-instruments Agno so every transient Agent / Team built by
+    # our run routes emits OpenInference spans to the configured collector.
+    # Registered once here (before any request is served) so instrumentation
+    # is in place for the first run.
+    setup_phoenix_tracing(settings)
 
     # Bootstrap admin runs unconditionally; the helper itself is a no-op when
     # the BOOTSTRAP_ADMIN_* env vars are unset, so no DB connection is opened

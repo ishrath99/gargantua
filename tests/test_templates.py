@@ -251,7 +251,7 @@ def test_shipped_seeds_all_parse() -> None:
     templates = load_templates()  # default: package's seeds/agents dir
     slugs = {t.slug for t in templates}
     # Every shipped seed must be present + parseable.
-    expected = {"api-explorer", "db-investigator", "logs-explorer", "triage-lead"}
+    expected = {"argocd-operator", "zabbix-monitor", "kubernetes-operator", "dpa-analyst"}
     assert expected <= slugs, f"missing seeds: {expected - slugs}"
 
 

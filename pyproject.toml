@@ -47,6 +47,16 @@ dependencies = [
     "pydantic-settings>=2.6.0",
     "python-dotenv>=1.0.0",
 
+    # Observability — Arize Phoenix tracing via OpenInference.  Optional at
+    # runtime: the tracer is only registered when PHOENIX_COLLECTOR_ENDPOINT
+    # is set (see gargantua.observability), so an unconfigured deployment
+    # pays nothing but the import cost.  ``arize-phoenix-otel`` is the
+    # lightweight client (just phoenix.otel.register) — not the full
+    # Phoenix server — and the openinference package is what auto_instrument
+    # hooks into to patch Agno's Agent/Team.
+    "arize-phoenix-otel>=0.6.0",
+    "openinference-instrumentation-agno>=0.1.0",
+
     # Misc utilities
     "aiohttp>=3.10.0",
     "pyyaml>=6.0.0",
@@ -150,5 +160,5 @@ namespace_packages = true
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["agno.*", "mcp.*"]
+module = ["agno.*", "mcp.*", "phoenix.*", "openinference.*"]
 ignore_missing_imports = true

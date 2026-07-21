@@ -115,6 +115,35 @@ class Settings(BaseSettings):
         description="Enable Agno's verbose debug logging on every run.",
     )
 
+    # ---------------------------------------------------- observability (Phoenix)
+    # Arize Phoenix tracing is opt-in and driven entirely by the collector
+    # endpoint below.  When it's blank the tracer is never registered
+    # (:func:`gargantua.observability.setup_phoenix_tracing` short-circuits),
+    # so the extra dependencies sit dormant.  When it's set, Agno agents and
+    # teams are auto-instrumented via OpenInference and every run emits spans
+    # to this collector — no per-agent wiring, since the instrumentation
+    # patches Agno globally at startup.
+    phoenix_collector_endpoint: str = Field(
+        default="",
+        description=(
+            "OTLP collector endpoint for Arize Phoenix, e.g. "
+            "'http://localhost:6006' (self-hosted) or "
+            "'https://app.phoenix.arize.com' (Phoenix Cloud). "
+            "Leave blank to disable tracing."
+        ),
+    )
+    phoenix_api_key: str = Field(
+        default="",
+        description=(
+            "API key for the Phoenix collector. Required for Phoenix Cloud; "
+            "usually unset for a self-hosted server."
+        ),
+    )
+    phoenix_project_name: str = Field(
+        default="gargantua",
+        description="Project name traces are grouped under in the Phoenix UI.",
+    )
+
     # ---------------------------------------------------------------- computed
     @computed_field  # type: ignore[prop-decorator]
     @property
